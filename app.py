@@ -84,28 +84,26 @@ template = """
 def index():
     form = FormularioForm(request.form)
 
-    # Iniicializa pelo menos uma seção se não houver nenhuma
     if not form.secoes:
         form.secoes.append_entry()
 
     if request.method == "POST":
-        # Botão adicionar seção
         if any(key.startswith("add_secao") for key in request.form.keys()):
             form.secoes.append_entry()
-            return render_template_string(template, form=form, dados={})
+            return render_template_string(template, form=form, dados={}, enumerate=enumerate)
 
-        # Botão adicionar campo em alguma seção
         for key in request.form.keys():
             if key.startswith("add_campo_"):
                 idx = int(key.split("_")[-1])
                 form.secoes.entries[idx].form.campos.append_entry()
-                return render_template_string(template, form=form, dados={})
+                return render_template_string(template, form=form, dados={}, enumerate=enumerate)
 
         if form.validate():
             formulario_dict = {
                 "nome": form.nome.data,
                 "secoes": []
             }
+
             for secao_form in form.secoes:
                 secao = {
                     "titulo": secao_form.titulo.data,
@@ -126,9 +124,9 @@ def index():
                     }
                     secao["campos"].append(campo)
                 formulario_dict["secoes"].append(secao)
-            return render_template_string(template, form=form, dados=formulario_dict)
+            return render_template_string(template, form=form, dados=formulario_dict, enumerate=enumerate)
 
-    return render_template_string(template, form=form, dados={})
+    return render_template_string(template, form=form, dados={}, enumerate=enumerate)
 
 if __name__ == "__main__":
     app.run(debug=True)
