@@ -77,7 +77,7 @@ template = """
     <input type="submit" value="Salvar Formulário">
 </form>
 
-{% if dados.secoes %}
+{% if dados and dados.secoes %}
 <hr>
 <h3>Pré-visualização do Formulário</h3>
 {% for secao in dados.secoes %}
