@@ -10,6 +10,36 @@ TIPOS_ELEMENTOS = [
     "grupoCheck", "paragrafo", "rotulo"
 ]
 
+def parse_campos_recursivo(el, dominios_map):
+    campos = []
+    for campo_el in el.findall("elemento"):
+        tipo = campo_el.attrib.get("{http://www.w3.org/2001/XMLSchema-instance}type", "texto")
+        if tipo == "tabela":
+            # Explorar dentro da tabela: linhas, celulas, elementos
+            linhas = campo_el.find("linhas")
+            if linhas is not None:
+                for linha in linhas.findall("linha"):
+                    for celula in linha.findall("celulas/linha/celula") + linha.findall("celulas/celula"):
+                        elementos_celula = celula.find("elementos")
+                        if elementos_celula is not None:
+                            campos.extend(parse_campos_recursivo(elementos_celula, dominios_map))
+        else:
+            dominio_chave = campo_el.attrib.get("dominio")
+            dominios_campo = dominios_map.get(dominio_chave, []) if dominio_chave else []
+            campo = {
+                "tipo": tipo,
+                "titulo": campo_el.attrib.get("titulo", ""),
+                "descricao": campo_el.attrib.get("descricao", campo_el.attrib.get("titulo", "")),
+                "obrigatorio": campo_el.attrib.get("obrigatorio", "false").lower() == "true",
+                "largura": int(campo_el.attrib.get("largura", 450)) if campo_el.attrib.get("largura") else 450,
+                "altura": int(campo_el.attrib.get("altura", 100)) if tipo == "texto-area" and campo_el.attrib.get("altura") else None,
+                "colunas": int(campo_el.attrib.get("colunas", 1)) if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"] and campo_el.attrib.get("colunas") else 1,
+                "in_tabela": False,
+                "dominios": dominios_campo,
+            }
+            campos.append(campo)
+    return campos
+
 def xml_to_dict(xml_string):
     root = ET.fromstring(xml_string)
     formulario = {
@@ -18,7 +48,6 @@ def xml_to_dict(xml_string):
         "secoes": [],
         "dominios": []
     }
-
     dominios_map = {}
 
     dominios_el = root.find("dominios")
@@ -46,23 +75,9 @@ def xml_to_dict(xml_string):
                 }
                 subelementos = el.find("elementos")
                 if subelementos is not None:
-                    for campo_el in subelementos.findall("elemento"):
-                        tipo = campo_el.attrib.get("{http://www.w3.org/2001/XMLSchema-instance}type", "texto")
-                        dominio_chave = campo_el.attrib.get("dominio")
-                        dominios_campo = dominios_map.get(dominio_chave, []) if dominio_chave else []
-                        campo = {
-                            "tipo": tipo,
-                            "titulo": campo_el.attrib.get("titulo", ""),
-                            "descricao": campo_el.attrib.get("descricao", campo_el.attrib.get("titulo", "")),
-                            "obrigatorio": campo_el.attrib.get("obrigatorio", "false").lower() == "true",
-                            "largura": int(campo_el.attrib.get("largura", 450)),
-                            "altura": int(campo_el.attrib.get("altura", 100)) if tipo == "texto-area" and "altura" in campo_el.attrib else None,
-                            "colunas": int(campo_el.attrib.get("colunas", 1)) if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"] else None,
-                            "in_tabela": False,
-                            "dominios": dominios_campo,
-                        }
-                        secao["campos"].append(campo)
+                    secao["campos"] = parse_campos_recursivo(subelementos, dominios_map)
                 formulario["secoes"].append(secao)
+
     return formulario
 
 def _prettify_xml(root: ET.Element) -> str:
@@ -138,7 +153,7 @@ if "editando_secao" not in st.session_state:
 if "editando_campo" not in st.session_state:
     st.session_state.editando_campo = None
 
-st.title("Construtor de Formulários 6.4 - Domínio com campos individuais")
+st.title("Construtor de Formulários 6.4 - XML Robustez")
 
 # Importação XML
 with st.sidebar.expander("Importar Formulário XML"):
@@ -152,7 +167,7 @@ with st.sidebar.expander("Importar Formulário XML"):
         except Exception as e:
             st.error(f"Erro na importação do XML: {e}")
 
-# Nome do formulário
+# Nome formulário
 st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", st.session_state.formulario["nome"])
 
 # Adicionar seção
@@ -209,7 +224,6 @@ for s_idx, secao in enumerate(st.session_state.formulario.get("secoes", [])):
                     st.session_state.formulario["secoes"][s_idx]["campos"].pop(c_idx)
                     st.rerun()
 
-        # Edição de campo (modelo campos separados)
         if st.session_state.editando_campo and st.session_state.editando_campo[0] == s_idx:
             c_idx = st.session_state.editando_campo[1]
             campo = secao["campos"][c_idx]
