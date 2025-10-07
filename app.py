@@ -10,7 +10,6 @@ TIPOS_ELEMENTOS = [
     "grupoCheck", "paragrafo", "rotulo"
 ]
 
-# Função para ler XML e converter para estrutura interna
 def xml_to_dict(xml_string):
     root = ET.fromstring(xml_string)
     formulario = {
@@ -24,7 +23,6 @@ def xml_to_dict(xml_string):
 
     dominios_el = root.find("dominios")
     if dominios_el is not None:
-        # Parse domínios globais e seus itens
         for dominio_el in dominios_el.findall("dominio"):
             chave = dominio_el.attrib.get("chave")
             itens = []
@@ -107,13 +105,11 @@ def gerar_xml(formulario: dict) -> str:
             if tipo == "texto-area" and campo.get("altura") is not None:
                 attrs["altura"] = str(campo.get("altura"))
 
-            # Gerar domínio se for do tipo com domínio e dominios preenchidos
             if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"] and campo.get("dominios"):
                 chave_dom = titulo.replace(" ", "")[:20].upper()
                 attrs["colunas"] = str(campo.get("colunas", 1))
                 attrs["dominio"] = chave_dom
 
-                # Domínio global
                 dominio_el = ET.SubElement(dominios_global, "dominio", {
                     "gxsi:type": "dominioEstatico",
                     "chave": chave_dom
@@ -131,7 +127,6 @@ def gerar_xml(formulario: dict) -> str:
 
     return _prettify_xml(root)
 
-# Inicializa estados
 if "formulario" not in st.session_state:
     st.session_state.formulario = {
         "nome": "",
@@ -143,54 +138,52 @@ if "editando_secao" not in st.session_state:
 if "editando_campo" not in st.session_state:
     st.session_state.editando_campo = None
 
-st.title("Construtor de Formulários 6.4 - Correções")
+st.title("Construtor de Formulários 6.4 - Campos Separados por Tipo")
 
-# Upload XML para importação
+# Importação XML
 with st.sidebar.expander("Importar Formulário XML"):
-    uploaded_file = st.file_uploader("Escolha o arquivo XML", type=["xml"])
+    uploaded_file = st.file_uploader("Selecionar arquivo XML", type=["xml"])
     if uploaded_file:
         try:
             content = uploaded_file.getvalue().decode("utf-8")
-            dados_importados = xml_to_dict(content)
-            st.session_state.formulario = dados_importados
+            st.session_state.formulario = xml_to_dict(content)
             st.success("XML importado com sucesso!")
             st.rerun()
         except Exception as e:
-            st.error(f"Erro ao importar XML: {e}")
+            st.error(f"Erro na importação do XML: {e}")
 
-# Edição nome do formulário
+# Nome do formulário
 st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", st.session_state.formulario["nome"])
 
-# Adição de seção nova
+# Adicionar seção
 with st.expander("Adicionar Nova Seção", expanded=False):
-    nova_secao_titulo = st.text_input("Título da Seção", key="nova_secao_titulo")
-    nova_secao_largura = st.number_input("Largura da Seção", min_value=100, value=500, step=10, key="nova_secao_largura")
+    nova_titulo_sec = st.text_input("Título da Seção", key="nova_secao_titulo")
+    nova_largura_sec = st.number_input("Largura da Seção (px)", min_value=100, value=500, step=10, key="nova_secao_largura")
     if st.button("Adicionar Seção"):
-        if nova_secao_titulo.strip():
+        if nova_titulo_sec.strip():
             st.session_state.formulario["secoes"].append({
-                "titulo": nova_secao_titulo,
-                "largura": nova_secao_largura,
+                "titulo": nova_titulo_sec,
+                "largura": nova_largura_sec,
                 "campos": []
             })
             st.rerun()
         else:
-            st.warning("Preencha o título da seção.")
+            st.warning("Informe o título da seção.")
 
-# Listagem e edição das seções
 for s_idx, secao in enumerate(st.session_state.formulario.get("secoes", [])):
-    with st.expander(f"Seção [{s_idx}]: {secao['titulo']}", expanded=st.session_state.editando_secao == s_idx):
-        if st.button("Editar Seção", key=f"edit_sec_{s_idx}"):
+    with st.expander(f"Seção [{s_idx}] - {secao['titulo']}", expanded=st.session_state.editando_secao == s_idx):
+        if st.button("Editar Seção", key=f"editar_sec_{s_idx}"):
             st.session_state.editando_secao = s_idx
             st.session_state.editando_campo = None
             st.rerun()
 
         if st.session_state.editando_secao == s_idx:
-            novo_titulo = st.text_input("Título Seção", value=secao["titulo"], key=f"edit_titulo_sec_{s_idx}")
-            nova_largura = st.number_input("Largura", min_value=100, value=secao.get("largura", 500), key=f"edit_largura_sec_{s_idx}")
+            novo_titulo = st.text_input("Título da Seção", value=secao["titulo"], key=f"edit_titulo_sec_{s_idx}")
+            nova_largura = st.number_input("Largura (px)", min_value=100, value=secao.get("largura", 500), key=f"edit_largura_sec_{s_idx}")
 
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("Salvar", key=f"salvar_sec_{s_idx}"):
+                if st.button("Salvar Seção", key=f"salvar_sec_{s_idx}"):
                     st.session_state.formulario["secoes"][s_idx].update({
                         "titulo": novo_titulo,
                         "largura": nova_largura
@@ -204,7 +197,7 @@ for s_idx, secao in enumerate(st.session_state.formulario.get("secoes", [])):
 
         st.write("Campos:")
         for c_idx, campo in enumerate(secao.get("campos", [])):
-            col1, col2, col3 = st.columns([8,1,1])
+            col1, col2, col3 = st.columns([8, 1, 1])
             with col1:
                 st.text(f"{campo.get('tipo', 'texto')} - {campo.get('titulo', '')}")
             with col2:
@@ -213,11 +206,10 @@ for s_idx, secao in enumerate(st.session_state.formulario.get("secoes", [])):
                     st.session_state.editando_campo = (s_idx, c_idx)
                     st.rerun()
             with col3:
-                if st.button("Excluir", key=f"del_campo_{s_idx}_{c_idx}"):
+                if st.button("Excluir", key=f"excluir_campo_{s_idx}_{c_idx}"):
                     st.session_state.formulario["secoes"][s_idx]["campos"].pop(c_idx)
                     st.rerun()
 
-        # Edição campo ativo
         if st.session_state.editando_campo and st.session_state.editando_campo[0] == s_idx:
             c_idx = st.session_state.editando_campo[1]
             campo = secao["campos"][c_idx]
@@ -227,39 +219,29 @@ for s_idx, secao in enumerate(st.session_state.formulario.get("secoes", [])):
             descricao = st.text_input("Descrição", value=campo.get("descricao", titulo), key=f"edit_desc_{s_idx}_{c_idx}")
             obrig = st.checkbox("Obrigatório", value=campo.get("obrigatorio", False), key=f"edit_obrig_{s_idx}_{c_idx}")
             in_tabela = st.checkbox("Dentro da Tabela", value=campo.get("in_tabela", False), key=f"edit_intabela_{s_idx}_{c_idx}")
-            largura = st.number_input("Largura", min_value=100, value=campo.get("largura", 450), key=f"edit_largura_{s_idx}_{c_idx}")
-            altura = st.number_input("Altura (texto-area)", min_value=50, value=campo.get("altura") or 100, key=f"edit_altura_{s_idx}_{c_idx}") if tipo == "texto-area" else None
-            colunas = st.number_input("Colunas", min_value=1, max_value=10, value=campo.get("colunas", 1), key=f"edit_colunas_{s_idx}_{c_idx}") if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"] else None
 
-            # Domínios com adição e remoção
-            dominios = campo.get("dominios", [])
-            st.markdown("Domínios:")
-            if "edit_dominio_novo" not in st.session_state:
-                st.session_state.edit_dominio_novo = ""
-            if "edit_dominio_lista" not in st.session_state or st.session_state.editando_campo != (s_idx,c_idx):
-                st.session_state.edit_dominio_lista = dominios.copy()
-            for i, d in enumerate(st.session_state.edit_dominio_lista):
-                col_dom, col_del = st.columns([8,1])
-                with col_dom:
-                    novo_desc = st.text_input(f"Descrição {i+1}", value=d["descricao"], key=f"dom_desc_{s_idx}_{c_idx}_{i}")
-                    st.session_state.edit_dominio_lista[i]["descricao"] = novo_desc
-                    st.session_state.edit_dominio_lista[i]["valor"] = novo_desc.upper()
-                with col_del:
-                    if st.button("X", key=f"del_dom_{s_idx}_{c_idx}_{i}"):
-                        st.session_state.edit_dominio_lista.pop(i)
-                        st.rerun()
-                        break
-            new_dom = st.text_input("Novo domínio", key="edit_dominio_novo")
-            if st.button("Adicionar domínio"):
-                if new_dom.strip():
-                    st.session_state.edit_dominio_lista.append({"descricao": new_dom.strip(), "valor": new_dom.strip().upper()})
-                    st.session_state.edit_dominio_novo = ""
-                    st.rerun()
+            # Campos separados por tipo
+            largura = 450
+            altura = None
+            colunas = 1
+            dominios_list = []
+
+            if tipo in ["texto", "cpf", "cnpj", "email", "telefone", "moeda", "data", "check", "paragrafo", "rotulo"]:
+                largura = st.number_input("Largura (px)", min_value=50, max_value=1000, value=campo.get("largura", 450), key=f"edit_largura_{s_idx}_{c_idx}")
+            elif tipo == "texto-area":
+                largura = st.number_input("Largura (px)", min_value=50, max_value=1000, value=campo.get("largura", 450), key=f"edit_largura_{s_idx}_{c_idx}")
+                altura = st.number_input("Altura (px)", min_value=50, max_value=1000, value=campo.get("altura", 100) or 100, key=f"edit_altura_{s_idx}_{c_idx}")
+            elif tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"]:
+                colunas = st.number_input("Colunas", min_value=1, max_value=5, value=campo.get("colunas", 1), key=f"edit_colunas_{s_idx}_{c_idx}")
+                dominios_text = st.text_area("Domínios (separados por vírgula)", value=", ".join([d["descricao"] for d in campo.get("dominios", [])]), key=f"edit_dominios_{s_idx}_{c_idx}")
+                dominios_list = [{"descricao": d.strip(), "valor": d.strip().upper()} for d in dominios_text.split(",") if d.strip()]
+            else:
+                largura = st.number_input("Largura (px)", min_value=50, max_value=1000, value=campo.get("largura", 450), key=f"edit_largura_{s_idx}_{c_idx}")
 
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("Salvar Campo", key=f"salvar_campo_{s_idx}_{c_idx}"):
-                    st.session_state.formulario["secoes"][s_idx]["campos"][c_idx].update({
+                    atts = {
                         "tipo": tipo,
                         "titulo": titulo,
                         "descricao": descricao,
@@ -268,8 +250,10 @@ for s_idx, secao in enumerate(st.session_state.formulario.get("secoes", [])):
                         "largura": largura,
                         "altura": altura,
                         "colunas": colunas,
-                        "dominios": st.session_state.edit_dominio_lista
-                    })
+                        "dominios": dominios_list
+                    }
+                    atts = {k: v for k, v in atts.items() if v is not None}
+                    st.session_state.formulario["secoes"][s_idx]["campos"][c_idx].update(atts)
                     st.session_state.editando_campo = None
                     st.rerun()
             with col2:
@@ -277,7 +261,6 @@ for s_idx, secao in enumerate(st.session_state.formulario.get("secoes", [])):
                     st.session_state.editando_campo = None
                     st.rerun()
 
-# Adicionar campo nova na última seção
 if st.session_state.formulario.get("secoes"):
     last_idx = len(st.session_state.formulario["secoes"]) - 1
     secao_atual = st.session_state.formulario["secoes"][last_idx]
@@ -287,15 +270,16 @@ if st.session_state.formulario.get("secoes"):
         titulo = st.text_input("Título do Campo", key="add_titulo_campo")
         obrig = st.checkbox("Obrigatório?", key="add_obrigatorio_campo")
         in_tabela = st.checkbox("Dentro da Tabela?", key="add_in_tabela_campo")
-        largura = st.number_input("Largura (px)", min_value=100, value=450, step=10, key="add_largura_campo")
+        largura = st.number_input("Largura (px)", min_value=50, max_value=1000, value=450, step=10, key="add_largura_campo")
         altura = None
-        if tipo == "texto-area":
-            altura = st.number_input("Altura (px)", min_value=50, value=100, step=10, key="add_altura_campo")
         colunas = 1
         dominios = []
+
+        if tipo == "texto-area":
+            altura = st.number_input("Altura (px)", min_value=50, max_value=1000, value=100, step=10, key="add_altura_campo")
         if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"]:
             colunas = st.number_input("Colunas", min_value=1, max_value=5, value=1, key="add_colunas_campo")
-            dominios_text = st.text_area("Domínios (descrições separadas por vírgula)", key="add_dominios_campo")
+            dominios_text = st.text_area("Domínios (separados por vírgula)", key="add_dominios_campo")
             dominios = [{"descricao": d.strip(), "valor": d.strip().upper()} for d in dominios_text.split(",") if d.strip()]
 
         if st.button("Adicionar Campo"):
@@ -313,15 +297,13 @@ if st.session_state.formulario.get("secoes"):
             secao_atual["campos"].append(campo)
             st.rerun()
 
-# Preview do formulário simples
 st.markdown("---")
-st.subheader("Pré-visualização inicial do formulário")
+st.subheader("Pré-visualização simples do formulário")
 for sec in st.session_state.formulario.get("secoes", []):
     st.markdown(f"### Seção: {sec['titulo']}")
     for campo in sec.get("campos", []):
         st.markdown(f"- **{campo['titulo']}** ({campo['tipo']}) {'*Obrigatório*' if campo.get('obrigatorio') else ''}")
 
-# Preview XML gerado
 st.markdown("---")
 st.subheader("Pré-visualização XML gerado")
 st.code(gerar_xml(st.session_state.formulario), language="xml")
