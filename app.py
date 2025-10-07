@@ -10,34 +10,33 @@ TIPOS_ELEMENTOS = [
     "grupoCheck", "paragrafo", "rotulo"
 ]
 
-def parse_campos_recursivo(el, dominios_map):
+def buscar_campos(element, dominios_map):
     campos = []
-    for campo_el in el.findall("elemento"):
-        tipo = campo_el.attrib.get("{http://www.w3.org/2001/XMLSchema-instance}type", "texto")
+    for e in element.findall("elemento"):
+        tipo = e.attrib.get("{http://www.w3.org/2001/XMLSchema-instance}type", "")
         if tipo == "tabela":
-            # Explorar dentro da tabela: linhas, celulas, elementos
-            linhas = campo_el.find("linhas")
+            linhas = e.find("linhas")
             if linhas is not None:
                 for linha in linhas.findall("linha"):
-                    for celula in linha.findall("celulas/linha/celula") + linha.findall("celulas/celula"):
-                        elementos_celula = celula.find("elementos")
-                        if elementos_celula is not None:
-                            campos.extend(parse_campos_recursivo(elementos_celula, dominios_map))
+                    celulas = linha.find("celulas")
+                    if celulas is not None:
+                        for celula in celulas.findall("celula"):
+                            els_celula = celula.find("elementos")
+                            if els_celula is not None:
+                                campos += buscar_campos(els_celula, dominios_map)
         else:
-            dominio_chave = campo_el.attrib.get("dominio")
-            dominios_campo = dominios_map.get(dominio_chave, []) if dominio_chave else []
-            campo = {
+            dominio_chave = e.attrib.get("dominio")
+            campos.append({
                 "tipo": tipo,
-                "titulo": campo_el.attrib.get("titulo", ""),
-                "descricao": campo_el.attrib.get("descricao", campo_el.attrib.get("titulo", "")),
-                "obrigatorio": campo_el.attrib.get("obrigatorio", "false").lower() == "true",
-                "largura": int(campo_el.attrib.get("largura", 450)) if campo_el.attrib.get("largura") else 450,
-                "altura": int(campo_el.attrib.get("altura", 100)) if tipo == "texto-area" and campo_el.attrib.get("altura") else None,
-                "colunas": int(campo_el.attrib.get("colunas", 1)) if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"] and campo_el.attrib.get("colunas") else 1,
+                "titulo": e.attrib.get("titulo", ""),
+                "descricao": e.attrib.get("descricao", e.attrib.get("titulo", "")),
+                "obrigatorio": e.attrib.get("obrigatorio", "false").lower() == "true",
+                "largura": int(e.attrib.get("largura", 450)) if e.attrib.get("largura") else 450,
+                "altura": int(e.attrib.get("altura", 100)) if tipo == "texto-area" and e.attrib.get("altura") else None,
+                "colunas": int(e.attrib.get("colunas", 1)) if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"] and e.attrib.get("colunas") else 1,
                 "in_tabela": False,
-                "dominios": dominios_campo,
-            }
-            campos.append(campo)
+                "dominios": dominios_map.get(dominio_chave, []) if dominio_chave else []
+            })
     return campos
 
 def xml_to_dict(xml_string):
@@ -49,7 +48,6 @@ def xml_to_dict(xml_string):
         "dominios": []
     }
     dominios_map = {}
-
     dominios_el = root.find("dominios")
     if dominios_el is not None:
         for dominio_el in dominios_el.findall("dominio"):
@@ -75,9 +73,8 @@ def xml_to_dict(xml_string):
                 }
                 subelementos = el.find("elementos")
                 if subelementos is not None:
-                    secao["campos"] = parse_campos_recursivo(subelementos, dominios_map)
+                    secao["campos"] += buscar_campos(subelementos, dominios_map)
                 formulario["secoes"].append(secao)
-
     return formulario
 
 def _prettify_xml(root: ET.Element) -> str:
@@ -153,7 +150,7 @@ if "editando_secao" not in st.session_state:
 if "editando_campo" not in st.session_state:
     st.session_state.editando_campo = None
 
-st.title("Construtor de Formulários 6.4 - XML Robustez")
+st.title("Construtor de Formulários 6.4 - Importação XML Recursiva")
 
 # Importação XML
 with st.sidebar.expander("Importar Formulário XML"):
@@ -167,7 +164,7 @@ with st.sidebar.expander("Importar Formulário XML"):
         except Exception as e:
             st.error(f"Erro na importação do XML: {e}")
 
-# Nome formulário
+# Nome do formulário
 st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", st.session_state.formulario["nome"])
 
 # Adicionar seção
