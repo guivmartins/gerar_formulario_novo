@@ -3,6 +3,8 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 from io import StringIO
 
+from streamlit import experimental_rerun  # Importa explicitamente
+
 st.set_page_config(page_title="Construtor de Formulários 6.4 + Edição + Importação XML", layout="wide")
 
 TIPOS_ELEMENTOS = [
@@ -22,7 +24,6 @@ def xml_to_dict(xml_string):
 
     ns = {'gxsi': "http://www.w3.org/2001/XMLSchema-instance"}
 
-    # Parse seções
     elementos = root.find("elementos")
     if elementos is not None:
         for el in elementos.findall("elemento"):
@@ -47,11 +48,6 @@ def xml_to_dict(xml_string):
                             "in_tabela": False,
                             "dominios": []
                         }
-                        if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"]:
-                            dominio_chave = campo_el.attrib.get("dominio", "")
-                            # Poderia buscar o domínio global para os itens
-                            # Por simplicidade, deixar array vazia
-                            campo["dominios"] = []
                         secao["campos"].append(campo)
                 formulario["secoes"].append(secao)
 
@@ -132,6 +128,7 @@ with st.sidebar.expander("Importar Formulário XML"):
             formulario_parseado = xml_to_dict(content)
             st.session_state.formulario = formulario_parseado
             st.success("XML importado com sucesso!")
+            experimental_rerun()
         except Exception as e:
             st.error(f"Erro ao importar XML: {e}")
 
@@ -149,7 +146,7 @@ with st.expander("Adicionar Nova Seção", expanded=False):
                 "largura": nova_secao_largura,
                 "campos": []
             })
-            st.experimental_rerun()
+            experimental_rerun()
         else:
             st.warning("Informe o título da seção para adicionar.")
 
@@ -159,7 +156,7 @@ for s_idx, secao in enumerate(st.session_state.formulario.get("secoes", [])):
         if st.button("Editar Seção", key=f"editar_secao_{s_idx}"):
             st.session_state.editando_secao = s_idx
             st.session_state.editando_campo = None
-            st.experimental_rerun()
+            experimental_rerun()
 
         if st.session_state.editando_secao == s_idx:
             novo_titulo = st.text_input("Título da Seção", value=secao["titulo"], key=f"edit_titulo_secao_{s_idx}")
@@ -171,11 +168,11 @@ for s_idx, secao in enumerate(st.session_state.formulario.get("secoes", [])):
                     st.session_state.formulario["secoes"][s_idx]["titulo"] = novo_titulo
                     st.session_state.formulario["secoes"][s_idx]["largura"] = nova_largura
                     st.session_state.editando_secao = None
-                    st.experimental_rerun()
+                    experimental_rerun()
             with col2:
                 if st.button("Cancelar", key=f"cancelar_secao_{s_idx}"):
                     st.session_state.editando_secao = None
-                    st.experimental_rerun()
+                    experimental_rerun()
 
         st.markdown("### Campos:")
         for c_idx, campo in enumerate(secao.get("campos", [])):
@@ -186,11 +183,11 @@ for s_idx, secao in enumerate(st.session_state.formulario.get("secoes", [])):
                 if st.button("Editar", key=f"editar_campo_{s_idx}_{c_idx}"):
                     st.session_state.editando_secao = s_idx
                     st.session_state.editando_campo = (s_idx, c_idx)
-                    st.experimental_rerun()
+                    experimental_rerun()
             with col3:
                 if st.button("Excluir", key=f"excluir_campo_{s_idx}_{c_idx}"):
                     st.session_state.formulario["secoes"][s_idx]["campos"].pop(c_idx)
-                    st.experimental_rerun()
+                    experimental_rerun()
 
         # Edição de campo ativo
         if st.session_state.editando_campo and st.session_state.editando_campo[0] == s_idx:
@@ -226,11 +223,11 @@ for s_idx, secao in enumerate(st.session_state.formulario.get("secoes", [])):
                         "dominios": dominios_list
                     })
                     st.session_state.editando_campo = None
-                    st.experimental_rerun()
+                    experimental_rerun()
             with col2:
                 if st.button("Cancelar Edição", key=f"cancelar_campo_{s_idx}_{c_idx}"):
                     st.session_state.editando_campo = None
-                    st.experimental_rerun()
+                    experimental_rerun()
 
 # Adicionar campo na última seção
 if st.session_state.formulario.get("secoes"):
@@ -265,7 +262,7 @@ if st.session_state.formulario.get("secoes"):
                 "dominios": dominios
             }
             secao_atual["campos"].append(campo)
-            st.experimental_rerun()
+            experimental_rerun()
 
 st.markdown("---")
 st.subheader("📑 Pré-visualização XML")
