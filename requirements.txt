@@ -1,2 +1,2 @@
-Flask
-WTForms
+Flask==2.3.2
+WTForms==3.0.1
