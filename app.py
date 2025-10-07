@@ -20,9 +20,6 @@ def xml_to_dict(xml_string):
         "dominios": []
     }
 
-    ns = {'gxsi': "http://www.w3.org/2001/XMLSchema-instance"}
-
-    # Parse seções
     elementos = root.find("elementos")
     if elementos is not None:
         for el in elementos.findall("elemento"):
@@ -47,11 +44,6 @@ def xml_to_dict(xml_string):
                             "in_tabela": False,
                             "dominios": []
                         }
-                        if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"]:
-                            dominio_chave = campo_el.attrib.get("dominio", "")
-                            # Poderia buscar o domínio global para os itens
-                            # Por simplicidade, deixar array vazia
-                            campo["dominios"] = []
                         secao["campos"].append(campo)
                 formulario["secoes"].append(secao)
 
@@ -132,6 +124,7 @@ with st.sidebar.expander("Importar Formulário XML"):
             formulario_parseado = xml_to_dict(content)
             st.session_state.formulario = formulario_parseado
             st.success("XML importado com sucesso!")
+            st.experimental_rerun()
         except Exception as e:
             st.error(f"Erro ao importar XML: {e}")
 
