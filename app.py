@@ -1,6 +1,8 @@
-from flask import Flask, render_template_string, request, redirect, url_for
+from flask import Flask, render_template_string, request
 from wtforms import Form, StringField, SelectField, BooleanField, IntegerField, FieldList, FormField
 from wtforms.validators import InputRequired
+import xml.etree.ElementTree as ET
+from xml.dom import minidom
 
 app = Flask(__name__)
 app.secret_key = 'secret'
@@ -75,10 +77,128 @@ template = """
     <input type="submit" value="Salvar Formulário">
 </form>
 
+{% if dados.secoes %}
 <hr>
-<h3>Dados Recebidos</h3>
-<pre>{{ dados | safe }}</pre>
+<h3>Pré-visualização do Formulário</h3>
+{% for secao in dados.secoes %}
+  <h4>{{ secao.titulo }}</h4>
+  {% for campo in secao.campos %}
+    <div>
+      <label>{{ campo.titulo }} {% if campo.obrigatorio %}*{% endif %}</label>
+      {% if campo.tipo == 'texto' %}
+        <input type="text" />
+      {% elif campo.tipo == 'check' %}
+        <input type="checkbox" />
+      {% elif campo.tipo in ['comboBox', 'grupoRadio'] %}
+        <select>
+          {% for dom in campo.dominios %}
+            <option>{{ dom.descricao }}</option>
+          {% endfor %}
+        </select>
+      {% else %}
+        <input type="text" />
+      {% endif %}
+    </div>
+  {% endfor %}
+{% endfor %}
+<hr>
+<h3>Pré-visualização XML</h3>
+<pre>{{ xml | safe }}</pre>
+{% endif %}
 """
+
+def gerar_xml(formulario: dict) -> str:
+    root = ET.Element("gxsi:formulario", {
+        "nome": formulario.get("nome", ""),
+        "versao": "1.0",
+        "xmlns:gxsi": "http://www.w3.org/2001/XMLSchema-instance"
+    })
+
+    elementos = ET.SubElement(root, "elementos")
+    dominios_global = ET.Element("dominios")
+
+    for sec in formulario.get("secoes", []):
+        sec_el = ET.SubElement(elementos, "elemento", {
+            "gxsi:type": "seccao",
+            "titulo": sec.get("titulo", ""),
+            "largura": str(sec.get("largura", 500))
+        })
+        subelems = ET.SubElement(sec_el, "elementos")
+
+        tabela_aberta = None
+        elementos_destino = subelems
+        for campo in sec.get("campos", []):
+            tipo = campo.get("tipo", "texto")
+            titulo = campo.get("titulo", "")
+            obrig = str(bool(campo.get("obrigatorio", False))).lower()
+            largura = str(campo.get("largura", 450))
+
+            if campo.get("in_tabela"):
+                if tabela_aberta is None:
+                    tabela_aberta = ET.SubElement(subelems, "elemento", {"gxsi:type": "tabela"})
+                    linhas_tag = ET.SubElement(tabela_aberta, "linhas")
+                    linha_tag = ET.SubElement(linhas_tag, "linha")
+                    celulas_tag = ET.SubElement(linha_tag, "celulas")
+                    celula_tag = ET.SubElement(celulas_tag, "celula", {"linhas": "1", "colunas": "1"})
+                    elementos_destino = ET.SubElement(celula_tag, "elementos")
+            else:
+                tabela_aberta = None
+                elementos_destino = subelems
+
+            # parágrafo / rótulo
+            if tipo in ["paragrafo", "rotulo"]:
+                ET.SubElement(elementos_destino, "elemento", {
+                    "gxsi:type": tipo,
+                    "valor": campo.get("titulo", titulo),
+                    "largura": largura
+                })
+                continue
+
+            # campos com domínio
+            if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"] and campo.get("dominios"):
+                chave_dom = titulo.replace(" ", "")[:20].upper()
+                attrs = {
+                    "gxsi:type": tipo,
+                    "titulo": titulo,
+                    "descricao": campo.get("titulo", titulo),
+                    "obrigatorio": obrig,
+                    "largura": largura,
+                    "colunas": str(campo.get("colunas", 1)),
+                    "dominio": chave_dom
+                }
+                ET.SubElement(elementos_destino, "elemento", attrs)
+
+                # domínio global
+                dominio_el = ET.SubElement(dominios_global, "dominio", {
+                    "gxsi:type": "dominioEstatico",
+                    "chave": chave_dom
+                })
+                itens_el = ET.SubElement(dominio_el, "itens")
+                for d in campo["dominios"]:
+                    ET.SubElement(itens_el, "item", {
+                        "gxsi:type": "dominioItemValor",
+                        "descricao": d["descricao"],
+                        "valor": d["valor"]
+                    })
+                continue
+
+            # campos comuns
+            attrs = {
+                "gxsi:type": tipo,
+                "titulo": titulo,
+                "descricao": campo.get("titulo", titulo),
+                "obrigatorio": obrig,
+                "largura": largura
+            }
+            if tipo == "texto-area" and campo.get("altura"):
+                attrs["altura"] = str(campo.get("altura"))
+            el = ET.SubElement(elementos_destino, "elemento", attrs)
+            ET.SubElement(el, "conteudo", {"gxsi:type": "valor"})
+
+    root.append(dominios_global)
+    xml_bytes = ET.tostring(root, encoding="utf-8")
+    reparsed = minidom.parseString(xml_bytes)
+    return reparsed.toprettyxml(indent="  ")
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -87,16 +207,19 @@ def index():
     if not form.secoes:
         form.secoes.append_entry()
 
+    xml_str = ""
+    formulario_dict = {}
+
     if request.method == "POST":
         if any(key.startswith("add_secao") for key in request.form.keys()):
             form.secoes.append_entry()
-            return render_template_string(template, form=form, dados={}, enumerate=enumerate)
+            return render_template_string(template, form=form, dados={}, xml="", enumerate=enumerate)
 
         for key in request.form.keys():
             if key.startswith("add_campo_"):
                 idx = int(key.split("_")[-1])
                 form.secoes.entries[idx].form.campos.append_entry()
-                return render_template_string(template, form=form, dados={}, enumerate=enumerate)
+                return render_template_string(template, form=form, dados={}, xml="", enumerate=enumerate)
 
         if form.validate():
             formulario_dict = {
@@ -124,9 +247,10 @@ def index():
                     }
                     secao["campos"].append(campo)
                 formulario_dict["secoes"].append(secao)
-            return render_template_string(template, form=form, dados=formulario_dict, enumerate=enumerate)
 
-    return render_template_string(template, form=form, dados={}, enumerate=enumerate)
+            xml_str = gerar_xml(formulario_dict)
+
+    return render_template_string(template, form=form, dados=formulario_dict, xml=xml_str, enumerate=enumerate)
 
 if __name__ == "__main__":
     app.run(debug=True)
