@@ -1,9 +1,11 @@
 # app.py - Construtor de Formulários 6.4 (estável)
-# Funcionalidades: Construtor, Importação/edição de XML, Pré-visualização em ambas as abas (correção paragrafo/rotulo)
+# Funcionalidades: Construtor, Importação/edição de XML, Pré-visualização em ambas as abas,
+# correção paragrafo/rotulo, e reordenação de campos por arrastar-e-soltar (streamlit-sortable).
 
 import streamlit as st
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
+from streamlit_sortable import sortable
 
 st.set_page_config(page_title="Construtor de Formulários 6.4", layout="wide")
 
@@ -177,7 +179,7 @@ def _buscar_campos_rec(elementos_node: ET.Element, dominios_map: dict):
                 "colunas": int(el.attrib.get("colunas", 1)) if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"] and el.attrib.get("colunas") else 1,
                 "in_tabela": False,  # prévia plana
                 "dominios": _ler_itens_dominio(dominios_map, dominio_chave),
-                "valor": el.attrib.get("valor", "")  # captura conteúdo de paragrafo/rotulo
+                "valor": el.attrib.get("valor", "")
             })
     return campos
 
@@ -219,6 +221,28 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
         if tabela_aberta:
             st.markdown("</div>", unsafe_allow_html=True)
 
+# ---------- Reordenar por drag-and-drop ----------
+def ordenar_campos_por_drag(secao: dict, sec_index: int) -> None:
+    itens = [f"{i} | {c.get('tipo','texto')} - {c.get('titulo','')}" for i, c in enumerate(secao.get('campos', []))]
+    if not itens:
+        st.info("Nenhum campo para reordenar.")
+        return
+    st.markdown("Arraste para reordenar os campos abaixo:")
+    nova_ordem = sortable(
+        items=itens,
+        key=f"sortable_sec_{sec_index}",
+        direction="vertical",
+        disable=False,
+        styles={"border": "1px dashed #ddd", "padding": "8px", "borderRadius": "6px"},
+    )
+    if nova_ordem:
+        indices_novos = [int(s.split(" | ", 1)[0]) for s in nova_ordem]
+        if indices_novos != list(range(len(itens))):
+            campos_atual = secao["campos"]
+            secao["campos"] = [campos_atual[i] for i in indices_novos]
+            st.success("Ordem dos campos atualizada.")
+            st.rerun()
+
 # -------------------------
 # Abas
 # -------------------------
@@ -255,6 +279,9 @@ with aba[0]:
                 if st.button(f"🗑️ Excluir Seção", key=f"del_sec_{s_idx}"):
                     st.session_state.formulario["secoes"].pop(s_idx)
                     st.rerun()
+
+                with st.expander("🔀 Reordenar campos", expanded=False):
+                    ordenar_campos_por_drag(sec, s_idx)
 
                 st.markdown("### Campos")
                 for c_idx, campo in enumerate(sec.get("campos", [])):
@@ -379,6 +406,9 @@ with aba[1]:
                         st.session_state.formulario["secoes"].pop(s_idx)
                         st.rerun()
 
+                    with st.expander("🔀 Reordenar campos", expanded=False):
+                        ordenar_campos_por_drag(sec, s_idx)
+
                     st.markdown("### Campos")
                     for c_idx, campo in enumerate(sec.get("campos", [])):
                         st.text(f"{campo.get('tipo')} - {campo.get('titulo')}")
@@ -464,19 +494,6 @@ with aba[1]:
                             })
                             st.success("Campo adicionado.")
                             st.rerun()
-
-            st.markdown("---")
-            st.subheader("➕ Adicionar nova seção")
-            add_sec_tit = st.text_input("Título da nova seção", key="imp_new_sec_tit")
-            add_sec_larg = st.number_input("Largura (px)", min_value=100, value=500, step=10, key="imp_new_sec_larg")
-            if st.button("Adicionar seção", key="imp_new_sec_btn"):
-                st.session_state.formulario["secoes"].append({
-                    "titulo": add_sec_tit,
-                    "largura": add_sec_larg,
-                    "campos": []
-                })
-                st.success("Seção adicionada.")
-                st.rerun()
 
             st.markdown("---")
             st.subheader("📑 XML atualizado")
