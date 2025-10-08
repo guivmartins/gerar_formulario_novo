@@ -1,12 +1,10 @@
 # app.py - Construtor de Formulários 6.4 (estável)
 # Funcionalidades: Construtor, Importação/edição de XML, Pré-visualização em ambas as abas,
-# correção paragrafo/rotulo, e reordenação de campos por arrastar-e-soltar usando streamlit-sortables.
+# correção paragrafo/rotulo, e reordenação de campos por arrastar-e-soltar usando streamlit-sortables (com key única).
 
 import streamlit as st
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
-
-# IMPORTANTE: usar streamlit-sortables (com S no final)
 from streamlit_sortables import sort_items  # pip install streamlit-sortables
 
 st.set_page_config(page_title="Construtor de Formulários 6.4", layout="wide")
@@ -66,6 +64,7 @@ def gerar_xml(formulario: dict) -> str:
             obrig = str(bool(campo.get("obrigatorio", False))).lower()
             largura = str(campo.get("largura", 450))
 
+            # Abrir bloco de tabela quando necessário
             if campo.get("in_tabela"):
                 if tabela_aberta is None:
                     tabela_aberta = ET.SubElement(subelems, "elemento", {"gxsi:type": "tabela"})
@@ -78,6 +77,7 @@ def gerar_xml(formulario: dict) -> str:
                 tabela_aberta = None
                 elementos_destino = subelems
 
+            # parágrafo / rótulo
             if tipo in ["paragrafo", "rotulo"]:
                 ET.SubElement(elementos_destino, "elemento", {
                     "gxsi:type": tipo,
@@ -86,6 +86,7 @@ def gerar_xml(formulario: dict) -> str:
                 })
                 continue
 
+            # campos com domínio
             if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"] and campo.get("dominios"):
                 chave_dom = titulo.replace(" ", "")[:20].upper()
                 attrs = {
@@ -99,6 +100,7 @@ def gerar_xml(formulario: dict) -> str:
                 }
                 ET.SubElement(elementos_destino, "elemento", attrs)
 
+                # domínio global
                 dominio_el = ET.SubElement(dominios_global, "dominio", {
                     "gxsi:type": "dominioEstatico",
                     "chave": chave_dom
@@ -112,6 +114,7 @@ def gerar_xml(formulario: dict) -> str:
                     })
                 continue
 
+            # campos comuns
             attrs = {
                 "gxsi:type": tipo,
                 "titulo": titulo,
@@ -174,7 +177,7 @@ def _buscar_campos_rec(elementos_node: ET.Element, dominios_map: dict):
                 "largura": int(el.attrib.get("largura", 450)) if el.attrib.get("largura") else 450,
                 "altura": int(el.attrib.get("altura", 100)) if tipo == "texto-area" and el.attrib.get("altura") else None,
                 "colunas": int(el.attrib.get("colunas", 1)) if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"] and el.attrib.get("colunas") else 1,
-                "in_tabela": False,
+                "in_tabela": False,  # prévia plana
                 "dominios": _ler_itens_dominio(dominios_map, dominio_chave),
                 "valor": el.attrib.get("valor", "")
             })
@@ -219,15 +222,23 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
             st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------- Reordenar por drag-and-drop (streamlit-sortables) ----------
-def ordenar_campos_por_drag(secao: dict, sec_index: int) -> None:
-    # Monta lista de strings; sort_items retorna a lista ordenada
+def ordenar_campos_por_drag(secao: dict, sec_index: int, context_key: str) -> None:
     itens = [f"{i} | {c.get('tipo','texto')} - {c.get('titulo','')}" for i, c in enumerate(secao.get('campos', []))]
     if not itens:
         st.info("Nenhum campo para reordenar.")
         return
 
     st.markdown("Arraste para reordenar os campos abaixo:")
-    sorted_items = sort_items(itens, multi_containers=False)  # retorna nova ordem [web:63]
+
+    comp_key = f"sortable_{context_key}_{sec_index}"
+    sorted_items = sort_items(
+        itens,
+        multi_containers=False,
+        direction="vertical",
+        customStyle={"border": "1px dashed #ddd", "padding": "8px", "borderRadius": "6px"},
+        key=comp_key,  # chave única evita DuplicateElementId
+    )
+
     if sorted_items and sorted_items != itens:
         indices_novos = [int(s.split(" | ", 1)[0]) for s in sorted_items]
         campos_atual = secao["campos"]
@@ -270,7 +281,7 @@ with aba[0]:
                     st.rerun()
 
                 with st.expander("🔀 Reordenar campos", expanded=False):
-                    ordenar_campos_por_drag(sec, s_idx)
+                    ordenar_campos_por_drag(sec, s_idx, context_key="builder")
 
                 st.markdown("### Campos")
                 for c_idx, campo in enumerate(sec.get("campos", [])):
@@ -392,7 +403,7 @@ with aba[1]:
                         st.rerun()
 
                     with st.expander("🔀 Reordenar campos", expanded=False):
-                        ordenar_campos_por_drag(sec, s_idx)
+                        ordenar_campos_por_drag(sec, s_idx, context_key="import")
 
                     st.markdown("### Campos")
                     for c_idx, campo in enumerate(sec.get("campos", [])):
@@ -417,7 +428,7 @@ with aba[1]:
                                 colunas = st.number_input("Colunas", min_value=1, max_value=5, value=colunas, step=1, key=f"imp_cols_{s_idx}_{c_idx}")
                                 qtd_dom = st.number_input("Qtd. de Itens no Domínio", min_value=1, max_value=50, value=len(dominios) or 2, key=f"imp_qdom_{s_idx}_{c_idx}")
                                 novos_dom = []
-                                for i in range(int(qtd_dom)):
+                                for i in range(int(qtdom := int(qtd_dom))):
                                     base = dominios[i]["descricao"] if i < len(dominios) else ""
                                     d = st.text_input(f"Descrição Item {i+1}", value=base, key=f"imp_dom_{s_idx}_{c_idx}_{i}")
                                     if d.strip():
