@@ -1,6 +1,7 @@
 # app.py - Construtor de Formulários 6.4 (estável)
 # Funcionalidades: Construtor, Importação/edição de XML, Pré-visualização em ambas as abas,
-# correção paragrafo/rotulo, reordenação por drag (streamlit-sortables) com fallback por botões.
+# correção paragrafo/rotulo, e reordenação por arrastar-e-soltar (streamlit-sortables compatível)
+# com fallback por botões.
 
 import streamlit as st
 import xml.etree.ElementTree as ET
@@ -224,38 +225,32 @@ def mover_item(lista, idx, direcao):
         return True
     return False
 
-# ---------- Reordenar por drag-and-drop (streamlit-sortables) ----------
+# ---------- Reordenar por drag-and-drop (streamlit-sortables compat) ----------
 def ordenar_campos_por_drag(secao: dict, sec_index: int, context_key: str) -> None:
     campos = secao.get('campos', [])
     if not campos:
         st.info("Nenhum campo para reordenar.")
         return
 
-    # Itens como dict: id + content (mais robusto no componente)
-    itens = [{"id": i, "content": f"{campos[i].get('tipo','texto')} - {campos[i].get('titulo','')}"} for i in range(len(campos))]
+    # Lista de strings para máxima compatibilidade
+    itens = [f"{i} | {campos[i].get('tipo','texto')} - {campos[i].get('titulo','')}" for i in range(len(campos))]
 
     st.markdown("Arraste para reordenar os campos abaixo (ou use os botões):")
-
     comp_key = f"sortable_{context_key}_{sec_index}"
     sorted_items = sort_items(
         itens,
         multi_containers=False,
         direction="vertical",
-        allow_drag=True,
-        custom_style={
-            "container": {"border": "1px dashed #ddd", "padding": "8px", "borderRadius": "6px"},
-            "item": {"padding": "6px 10px", "margin": "4px 0", "background": "#fafafa", "cursor": "grab"}
-        },
+        custom_style={"border": "1px dashed #ddd", "padding": "8px", "borderRadius": "6px"},
         key=comp_key,
     )
 
-    # Se drag funcionou, aplica ordem retornada (lista de dicts na mesma estrutura)
-    if sorted_items and len(sorted_items) == len(itens):
-        nova_ordem_indices = [obj["id"] for obj in sorted_items]
-        if nova_ordem_indices != list(range(len(itens))):
-            secao["campos"] = [campos[i] for i in nova_ordem_indices]
-            st.success("Ordem dos campos atualizada.")
-            st.rerun()
+    # Se houve reorder, aplica
+    if sorted_items and sorted_items != itens:
+        nova_ordem_indices = [int(s.split(" | ", 1)[0]) for s in sorted_items]
+        secao["campos"] = [campos[i] for i in nova_ordem_indices]
+        st.success("Ordem dos campos atualizada.")
+        st.rerun()
 
     # Fallback: botões ↑ ↓
     st.markdown("Ou reordene manualmente:")
