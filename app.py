@@ -1,5 +1,5 @@
 # app.py - Construtor de Formulários 6.4 (estável)
-# Funcionalidades: Construtor, Importação/edição de XML, Pré-visualização em ambas as abas
+# Funcionalidades: Construtor, Importação/edição de XML, Pré-visualização em ambas as abas (correção paragrafo/rotulo)
 
 import streamlit as st
 import xml.etree.ElementTree as ET
@@ -79,7 +79,7 @@ def gerar_xml(formulario: dict) -> str:
             if tipo in ["paragrafo", "rotulo"]:
                 ET.SubElement(elementos_destino, "elemento", {
                     "gxsi:type": tipo,
-                    "valor": campo.get("valor", titulo),
+                    "valor": campo.get("valor", campo.get("descricao", titulo)),
                     "largura": largura
                 })
                 continue
@@ -176,7 +176,8 @@ def _buscar_campos_rec(elementos_node: ET.Element, dominios_map: dict):
                 "altura": int(el.attrib.get("altura", 100)) if tipo == "texto-area" and el.attrib.get("altura") else None,
                 "colunas": int(el.attrib.get("colunas", 1)) if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"] and el.attrib.get("colunas") else 1,
                 "in_tabela": False,  # prévia plana
-                "dominios": _ler_itens_dominio(dominios_map, dominio_chave)
+                "dominios": _ler_itens_dominio(dominios_map, dominio_chave),
+                "valor": el.attrib.get("valor", "")  # captura conteúdo de paragrafo/rotulo
             })
     return campos
 
@@ -207,8 +208,13 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                 st.radio(campo.get("titulo", ""), [d["descricao"] for d in campo.get("dominios", [])], key=key_prev)
             elif tipo == "check":
                 st.checkbox(campo.get("titulo", ""), key=key_prev)
-            elif tipo in ["paragrafo", "rotulo"]:
-                st.markdown(f"**{campo.get('titulo')}**")
+            elif tipo == "rotulo":
+                conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
+                st.markdown(f"**{conteudo}**")
+            elif tipo == "paragrafo":
+                conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
+                conteudo = str(conteudo).replace("\\n", "\n")
+                st.markdown(conteudo)
 
         if tabela_aberta:
             st.markdown("</div>", unsafe_allow_html=True)
@@ -293,7 +299,7 @@ with aba[0]:
                         "colunas": colunas,
                         "in_tabela": in_tabela,
                         "dominios": dominios_temp,
-                        "valor": ""
+                        "valor": ""  # usado para paragrafo/rotulo
                     }
                     secao_atual["campos"].append(campo)
                     st.rerun()
