@@ -1,6 +1,6 @@
 # app.py - Construtor de Formulários 6.4 (estável)
 # Funcionalidades: Construtor, Importação/edição de XML, Pré-visualização em ambas as abas,
-# correção paragrafo/rotulo, e reordenação de campos por arrastar-e-soltar usando streamlit-sortables (com key única).
+# correção paragrafo/rotulo, e reordenação de campos por arrastar-e-soltar usando streamlit-sortables.
 
 import streamlit as st
 import xml.etree.ElementTree as ET
@@ -64,7 +64,6 @@ def gerar_xml(formulario: dict) -> str:
             obrig = str(bool(campo.get("obrigatorio", False))).lower()
             largura = str(campo.get("largura", 450))
 
-            # Abrir bloco de tabela quando necessário
             if campo.get("in_tabela"):
                 if tabela_aberta is None:
                     tabela_aberta = ET.SubElement(subelems, "elemento", {"gxsi:type": "tabela"})
@@ -77,7 +76,6 @@ def gerar_xml(formulario: dict) -> str:
                 tabela_aberta = None
                 elementos_destino = subelems
 
-            # parágrafo / rótulo
             if tipo in ["paragrafo", "rotulo"]:
                 ET.SubElement(elementos_destino, "elemento", {
                     "gxsi:type": tipo,
@@ -86,7 +84,6 @@ def gerar_xml(formulario: dict) -> str:
                 })
                 continue
 
-            # campos com domínio
             if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"] and campo.get("dominios"):
                 chave_dom = titulo.replace(" ", "")[:20].upper()
                 attrs = {
@@ -100,7 +97,6 @@ def gerar_xml(formulario: dict) -> str:
                 }
                 ET.SubElement(elementos_destino, "elemento", attrs)
 
-                # domínio global
                 dominio_el = ET.SubElement(dominios_global, "dominio", {
                     "gxsi:type": "dominioEstatico",
                     "chave": chave_dom
@@ -114,7 +110,6 @@ def gerar_xml(formulario: dict) -> str:
                     })
                 continue
 
-            # campos comuns
             attrs = {
                 "gxsi:type": tipo,
                 "titulo": titulo,
@@ -177,7 +172,7 @@ def _buscar_campos_rec(elementos_node: ET.Element, dominios_map: dict):
                 "largura": int(el.attrib.get("largura", 450)) if el.attrib.get("largura") else 450,
                 "altura": int(el.attrib.get("altura", 100)) if tipo == "texto-area" and el.attrib.get("altura") else None,
                 "colunas": int(el.attrib.get("colunas", 1)) if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"] and el.attrib.get("colunas") else 1,
-                "in_tabela": False,  # prévia plana
+                "in_tabela": False,
                 "dominios": _ler_itens_dominio(dominios_map, dominio_chave),
                 "valor": el.attrib.get("valor", "")
             })
@@ -235,7 +230,7 @@ def ordenar_campos_por_drag(secao: dict, sec_index: int, context_key: str) -> No
         itens,
         multi_containers=False,
         direction="vertical",
-        customStyle={"border": "1px dashed #ddd", "padding": "8px", "borderRadius": "6px"},
+        custom_style={"border": "1px dashed #ddd", "padding": "8px", "borderRadius": "6px"},
         key=comp_key,  # chave única evita DuplicateElementId
     )
 
@@ -428,7 +423,7 @@ with aba[1]:
                                 colunas = st.number_input("Colunas", min_value=1, max_value=5, value=colunas, step=1, key=f"imp_cols_{s_idx}_{c_idx}")
                                 qtd_dom = st.number_input("Qtd. de Itens no Domínio", min_value=1, max_value=50, value=len(dominios) or 2, key=f"imp_qdom_{s_idx}_{c_idx}")
                                 novos_dom = []
-                                for i in range(int(qtdom := int(qtd_dom))):
+                                for i in range(int(qtd_dom)):
                                     base = dominios[i]["descricao"] if i < len(dominios) else ""
                                     d = st.text_input(f"Descrição Item {i+1}", value=base, key=f"imp_dom_{s_idx}_{c_idx}_{i}")
                                     if d.strip():
