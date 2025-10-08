@@ -1,4 +1,4 @@
-# app.py - Construtor de Formulários 6.4 (estável) com Importação, Edição e Pré-visualização em ambas as abas
+# app.py - Construtor de Formulários 6.4 (estável) com Importação, Edição e Pré-visualização em ambas as abas (keys únicas)
 import streamlit as st
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
@@ -173,21 +173,21 @@ def _buscar_campos_rec(elementos_node: ET.Element, dominios_map: dict):
                 "largura": int(el.attrib.get("largura", 450)) if el.attrib.get("largura") else 450,
                 "altura": int(el.attrib.get("altura", 100)) if tipo == "texto-area" and el.attrib.get("altura") else None,
                 "colunas": int(el.attrib.get("colunas", 1)) if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"] and el.attrib.get("colunas") else 1,
-                "in_tabela": False,
+                "in_tabela": False,  # prévia plana
                 "dominios": _ler_itens_dominio(dominios_map, dominio_chave)
             })
     return campos
 
-# ---------- Pré-visualização compartilhada ----------
-def preview_formulario(formulario: dict):
+# ---------- Pré-visualização compartilhada (keys únicas por aba) ----------
+def preview_formulario(formulario: dict, context_key: str = "main"):
     st.header("📋 Pré-visualização do Formulário")
     st.subheader(formulario.get("nome", ""))
-    for sec in formulario.get("secoes", []):
+    for s_idx, sec in enumerate(formulario.get("secoes", [])):
         st.markdown(f"### {sec.get('titulo')}")
         tabela_aberta = False
-        for campo in sec.get("campos", []):
+        for c_idx, campo in enumerate(sec.get("campos", [])):
             tipo = campo.get("tipo")
-            key_prev = f"prev_{sec.get('titulo')}_{campo.get('titulo')}"
+            key_prev = f"prev_{context_key}_{s_idx}_{c_idx}_{sec.get('titulo')}_{campo.get('titulo')}"
             if campo.get("in_tabela") and not tabela_aberta:
                 st.markdown("<div style='border:1px solid #ccc; padding:5px;'>", unsafe_allow_html=True)
                 tabela_aberta = True
@@ -298,7 +298,7 @@ with aba[0]:
 
     # Coluna 2 - Pré-visualização compartilhada
     with col2:
-        preview_formulario(st.session_state.formulario)
+        preview_formulario(st.session_state.formulario, context_key="builder")
 
     st.markdown("---")
     st.subheader("📑 Pré-visualização XML")
@@ -481,6 +481,6 @@ with aba[1]:
 
         st.markdown("---")
         st.subheader("Pré-visualização (Importar XML)")
-        preview_formulario(st.session_state.formulario)
+        preview_formulario(st.session_state.formulario, context_key="import")
     else:
         st.info("Importe um XML para começar a edição.")
