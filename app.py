@@ -203,7 +203,8 @@ def ordenar_campos_por_drag(secao: dict, sec_index: int, context_key: str) -> No
     if not campos:
         st.info("Nenhum campo para reordenar.")
         return
-    itens = [f"{i} | {campos[i].get('tipo','texto')} - {campos[i].get('titulo','')}" for i in range(len(campos))]
+    # Somente texto, sem índice!
+    itens = [f"{campo.get('tipo', 'texto')} - {campo.get('titulo', '')}" for campo in campos]
     st.markdown("Arraste para reordenar os campos abaixo (ou use os botões):")
     comp_key = f"sortable_{context_key}_{sec_index}"
     custom_style = "border: 1px dashed #ddd; padding: 8px; border-radius: 6px;"
@@ -214,8 +215,8 @@ def ordenar_campos_por_drag(secao: dict, sec_index: int, context_key: str) -> No
         custom_style=custom_style,
         key=comp_key,
     )
-    if sorted_items and sorted_items != itens:
-        nova_ordem_indices = [int(s.split(" | ", 1)[0]) for s in sorted_items]
+    if sorted_items and list(sorted_items) != list(itens):
+        nova_ordem_indices = [itens.index(text) for text in sorted_items]
         secao["campos"] = [campos[i] for i in nova_ordem_indices]
         st.success("Ordem dos campos atualizada.")
         st.rerun()
@@ -234,7 +235,6 @@ def ordenar_campos_por_drag(secao: dict, sec_index: int, context_key: str) -> No
                     st.rerun()
 
 aba = st.tabs(["Construtor", "Importar XML"])
-
 with aba[0]:
     col1, col2 = st.columns(2)
     with col1:
