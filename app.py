@@ -1,8 +1,3 @@
-# app.py - Construtor de Formulários 6.4 (estável)
-# Funcionalidades: Construtor, Importação/edição de XML, Pré-visualização em ambas as abas,
-# correção paragrafo/rotulo, e reordenação por arrastar-e-soltar usando streamlit-sortables.
-# Corrigido: custom_style compatível com todas as instâncias.
-
 import streamlit as st
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
@@ -17,7 +12,6 @@ if "formulario" not in st.session_state:
         "secoes": [],
         "dominios": []
     }
-
 if "nova_secao" not in st.session_state:
     st.session_state.nova_secao = {"titulo": "", "largura": 500, "campos": []}
 
@@ -212,11 +206,12 @@ def ordenar_campos_por_drag(secao: dict, sec_index: int, context_key: str) -> No
     itens = [f"{i} | {campos[i].get('tipo','texto')} - {campos[i].get('titulo','')}" for i in range(len(campos))]
     st.markdown("Arraste para reordenar os campos abaixo (ou use os botões):")
     comp_key = f"sortable_{context_key}_{sec_index}"
+    custom_style = "border: 1px dashed #ddd; padding: 8px; border-radius: 6px;"
     sorted_items = sort_items(
         itens,
         multi_containers=False,
         direction="vertical",
-        custom_style={"border": "1px dashed #ddd", "padding": "8px", "borderRadius": "6px"},
+        custom_style=custom_style,
         key=comp_key,
     )
     if sorted_items and sorted_items != itens:
