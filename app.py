@@ -250,9 +250,11 @@ with aba[0]:
         if st.session_state.formulario.get("secoes"):
             last_idx = len(st.session_state.formulario["secoes"]) - 1
             secao_atual = st.session_state.formulario["secoes"][last_idx]
+
             with st.expander(f"➕ Adicionar Campos à seção: {secao_atual.get('titulo','')}", expanded=True):
                 tipo = st.selectbox("Tipo do Campo", TIPOS_ELEMENTOS, key=f"type_{last_idx}")
-                titulo = st.text_input("Título do Campo", key=f"title_{last_idx}")
+                input_key = f"input_title_{last_idx}"
+                titulo = st.text_input("Título do Campo", key=input_key)
                 obrig = st.checkbox("Obrigatório", key=f"obrig_{last_idx}")
                 in_tabela = st.checkbox("Dentro da tabela?", key=f"tabela_{last_idx}")
                 largura = st.number_input("Largura (px)", min_value=100, value=450, step=10, key=f"larg_{last_idx}")
@@ -269,32 +271,42 @@ with aba[0]:
                         if val:
                             dominios_temp.append({"descricao": val, "valor": val.upper()})
                 if st.button("Adicionar Campo", key=f"add_field_{last_idx}"):
-                    campo = {
-                        "titulo": titulo,
-                        "descricao": titulo,
-                        "tipo": tipo,
-                        "obrigatorio": obrig,
-                        "largura": largura,
-                        "altura": altura,
-                        "colunas": colunas,
-                        "in_tabela": in_tabela,
-                        "dominios": dominios_temp,
-                        "valor": ""
-                    }
-                    secao_atual["campos"].append(campo)
-                    st.rerun()
-    with col2:
-        preview_formulario(st.session_state.formulario, context_key="builder")
-    st.markdown("---")
-    st.subheader("📑 Pré-visualização XML")
-    st.code(gerar_xml(st.session_state.formulario), language="xml")
+                    if titulo.strip():
+                        campo = {
+                            "titulo": titulo,
+                            "descricao": titulo,
+                            "tipo": tipo,
+                            "obrigatorio": obrig,
+                            "largura": largura,
+                            "altura": altura,
+                            "colunas": colunas,
+                            "in_tabela": in_tabela,
+                            "dominios": dominios_temp,
+                            "valor": ""
+                        }
+                        secao_atual["campos"].append(campo)
+                        st.session_state[input_key] = ""  # limpa campo título
+                        st.rerun()
+
+            gfe_xml_string = gerar_xml(st.session_state.formulario)
+
+            st.markdown("---")
+            st.subheader("📑 Pré-visualização XML")
+            st.code(gfe_xml_string, language="xml")
+
+            st.download_button(
+                label="⬇️ Baixar como .GFE",
+                data=gfe_xml_string.encode("utf-8"),
+                file_name="formulario_exportado.gfe",
+                mime="application/xml"
+            )
 
 with aba[1]:
     colL, colR = st.columns(2)
     with colL:
         st.title("Importar / Editar XML ou GFE")
         up = st.file_uploader("Selecione um arquivo XML ou GFE", type=["xml", "gfe"], key="uploader_xml_editor")
-        if up and st.button("Carregar XML ou GFE"):
+        if up and st.button("Carregar Arquivo"):
             try:
                 xml_str = up.getvalue().decode("utf-8")
                 root = ET.fromstring(xml_str)
