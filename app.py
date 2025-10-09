@@ -218,6 +218,7 @@ def ordenar_campos_por_drag(secao: dict, sec_index: int, context_key: str) -> No
                     st.rerun()
 
 aba = st.tabs(["Construtor", "Importar XML"])
+
 with aba[0]:
     col1, col2 = st.columns(2)
     with col1:
@@ -250,6 +251,7 @@ with aba[0]:
         if st.session_state.formulario.get("secoes"):
             last_idx = len(st.session_state.formulario["secoes"]) - 1
             secao_atual = st.session_state.formulario["secoes"][last_idx]
+
             with st.expander(f"➕ Adicionar Campos à seção: {secao_atual.get('titulo','')}", expanded=True):
                 tipo = st.selectbox("Tipo do Campo", TIPOS_ELEMENTOS, key=f"type_{last_idx}")
                 titulo = st.text_input("Título do Campo", key=f"title_{last_idx}")
@@ -284,11 +286,13 @@ with aba[0]:
                         }
                         secao_atual["campos"].append(campo)
                         st.rerun()
+
             gfe_xml_string = gerar_xml(st.session_state.formulario)
+
             st.markdown("---")
             st.subheader("📑 Pré-visualização XML")
             st.code(gfe_xml_string, language="xml")
-            # Botao de download pedido adicionado aqui
+
             st.download_button(
                 label="⬇️ Baixar como .GFE",
                 data=gfe_xml_string.encode("utf-8"),
@@ -296,6 +300,7 @@ with aba[0]:
                 mime="application/xml",
                 key="download_builder_gfe"
             )
+
 with aba[1]:
     colL, colR = st.columns(2)
     with colL:
@@ -369,6 +374,6 @@ with aba[1]:
                 key="download_import_gfe"
             )
         else:
-            st.info("Importe um arquivo para começar a edição.")
+            st.info("Importe um XML para começar a edição.")
     with colR:
         preview_formulario(st.session_state.formulario, context_key="import")
