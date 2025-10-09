@@ -5,6 +5,16 @@ from streamlit_sortables import sort_items  # pip install streamlit-sortables
 
 st.set_page_config(page_title="Construtor de Formulários 6.4", layout="wide")
 
+# CSS global para sobrescrever qualquer barra (erro) do sortables
+st.markdown("""
+    <style>
+    .sortable-item[style*="background-color: rgb(255, 90, 90)"] {
+        background-color: #fafafa !important;
+        color: inherit !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 if "formulario" not in st.session_state:
     st.session_state.formulario = {
         "nome": "",
@@ -203,8 +213,8 @@ def ordenar_campos_por_drag(secao: dict, sec_index: int, context_key: str) -> No
     if not campos:
         st.info("Nenhum campo para reordenar.")
         return
-    # Labels temporárias únicas (1. tipo - titulo)
-    itens = [f"{i+1}. {campo.get('tipo', 'texto')} - {campo.get('titulo', '')}" for i, campo in enumerate(campos)]
+    # Cria itens únicos para sort_items, ex: 'secao_1_2|||texto - nome'
+    itens = [f"sec{sec_index}_{i}|||{campo.get('tipo', 'texto')} - {campo.get('titulo', '')}" for i, campo in enumerate(campos)]
     st.markdown("Arraste para reordenar os campos abaixo (ou use os botões):")
     comp_key = f"sortable_{context_key}_{sec_index}"
     custom_style = "border: 1px dashed #ddd; padding: 8px; border-radius: 6px;"
@@ -215,17 +225,17 @@ def ordenar_campos_por_drag(secao: dict, sec_index: int, context_key: str) -> No
         custom_style=custom_style,
         key=comp_key,
     )
+    # Ajusta ordem conforme prefixo ID único
     if sorted_items and list(sorted_items) != list(itens):
-        nova_ordem_indices = [int(text.split(".", 1)[0]) - 1 for text in sorted_items]
+        nova_ordem_indices = [int(text.split("|||")[0].split("_")[-1]) for text in sorted_items]
         secao["campos"] = [campos[i] for i in nova_ordem_indices]
         st.success("Ordem dos campos atualizada.")
         st.rerun()
     st.markdown("Ou reordene manualmente:")
     for i, c in enumerate(secao["campos"]):
+        label = f"{c.get('tipo','texto')} - {c.get('titulo','')}"
+        st.caption(f"{i+1}. {label}")
         colA, colB, colC = st.columns([6,1,1])
-        with colA:
-            label = f"{c.get('tipo','texto')} - {c.get('titulo','')}"
-            st.caption(f"{i+1}. {label}")
         with colB:
             if st.button("↑", key=f"up_{context_key}_{sec_index}_{i}"):
                 if mover_item(secao["campos"], i, -1):
