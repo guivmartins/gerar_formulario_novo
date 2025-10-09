@@ -1,4 +1,3 @@
-# com importação de xml e ordenação de elementos. streamlit>=1.25 streamlit-sortables>=0.3.0
 import streamlit as st
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
@@ -186,7 +185,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                 st.markdown(f"**{conteudo}**")
             elif tipo == "paragrafo":
                 conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
-                conteudo = str(conteudo).replace("\\n", "\n")
+                conteudo = str(conteudo).replace("\n", "\n")
                 st.markdown(conteudo)
         if tabela_aberta:
             st.markdown("</div>", unsafe_allow_html=True)
@@ -270,26 +269,33 @@ with aba[0]:
                         if val:
                             dominios_temp.append({"descricao": val, "valor": val.upper()})
                 if st.button("Adicionar Campo", key=f"add_field_{last_idx}"):
-                    campo = {
-                        "titulo": titulo,
-                        "descricao": titulo,
-                        "tipo": tipo,
-                        "obrigatorio": obrig,
-                        "largura": largura,
-                        "altura": altura,
-                        "colunas": colunas,
-                        "in_tabela": in_tabela,
-                        "dominios": dominios_temp,
-                        "valor": ""
-                    }
-                    secao_atual["campos"].append(campo)
-                    st.rerun()
-    with col2:
-        preview_formulario(st.session_state.formulario, context_key="builder")
-    st.markdown("---")
-    st.subheader("📑 Pré-visualização XML")
-    st.code(gerar_xml(st.session_state.formulario), language="xml")
-
+                    if titulo.strip():
+                        campo = {
+                            "titulo": titulo,
+                            "descricao": titulo,
+                            "tipo": tipo,
+                            "obrigatorio": obrig,
+                            "largura": largura,
+                            "altura": altura,
+                            "colunas": colunas,
+                            "in_tabela": in_tabela,
+                            "dominios": dominios_temp,
+                            "valor": ""
+                        }
+                        secao_atual["campos"].append(campo)
+                        st.rerun()
+            gfe_xml_string = gerar_xml(st.session_state.formulario)
+            st.markdown("---")
+            st.subheader("📑 Pré-visualização XML")
+            st.code(gfe_xml_string, language="xml")
+            # Botao de download pedido adicionado aqui
+            st.download_button(
+                label="⬇️ Baixar como .GFE",
+                data=gfe_xml_string.encode("utf-8"),
+                file_name="formulario_exportado.gfe",
+                mime="application/xml",
+                key="download_builder_gfe"
+            )
 with aba[1]:
     colL, colR = st.columns(2)
     with colL:
@@ -353,8 +359,16 @@ with aba[1]:
                             st.rerun()
             st.markdown("---")
             st.subheader("📑 XML atualizado")
-            st.code(gerar_xml(st.session_state.formulario), language="xml")
+            gfe_xml_string = gerar_xml(st.session_state.formulario)
+            st.code(gfe_xml_string, language="xml")
+            st.download_button(
+                label="⬇️ Baixar como .GFE",
+                data=gfe_xml_string.encode("utf-8"),
+                file_name="formulario_exportado.gfe",
+                mime="application/xml",
+                key="download_import_gfe"
+            )
         else:
-            st.info("Importe um XML para começar a edição.")
+            st.info("Importe um arquivo para começar a edição.")
     with colR:
         preview_formulario(st.session_state.formulario, context_key="import")
