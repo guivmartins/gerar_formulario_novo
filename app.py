@@ -2,7 +2,7 @@ import streamlit as st
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
-st.set_page_config(page_title="Construtor de Formulários 6.4", layout="wide")
+st.set_page_config(page_title="Construtor de Formulários 6.5", layout="wide")
 
 if "formulario" not in st.session_state:
     st.session_state.formulario = {
@@ -221,7 +221,7 @@ aba = st.tabs(["Construtor", "Importar XML"])
 with aba[0]:
     col1, col2 = st.columns(2)
     with col1:
-        st.title("Construtor de Formulários 6.4")
+        st.title("Construtor de Formulários 6.5")
         st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", st.session_state.formulario["nome"])
         st.markdown("---")
         with st.expander("➕ Adicionar Seção", expanded=True):
@@ -292,9 +292,9 @@ with aba[0]:
 with aba[1]:
     colL, colR = st.columns(2)
     with colL:
-        st.title("Importar / Editar XML")
+        st.title("Importar / Editar XML ou GFE")
         up = st.file_uploader("Selecione um arquivo XML ou GFE", type=["xml", "gfe"], key="uploader_xml_editor")
-        if up and st.button("Carregar XML"):
+        if up and st.button("Carregar XML ou GFE"):
             try:
                 xml_str = up.getvalue().decode("utf-8")
                 root = ET.fromstring(xml_str)
@@ -318,10 +318,10 @@ with aba[1]:
                             sec["campos"] = _buscar_campos_rec(sub, dominios_map)
                             novo["secoes"].append(sec)
                 st.session_state.formulario = novo
-                st.success("XML carregado e pronto para edição.")
+                st.success("Arquivo carregado e pronto para edição.")
                 st.rerun()
             except Exception as e:
-                st.error(f"Erro ao importar XML: {e}")
+                st.error(f"Erro ao importar: {e}")
         if st.session_state.formulario.get("secoes"):
             st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", value=st.session_state.formulario.get("nome",""), key="imp_nome")
             st.markdown("---")
@@ -352,8 +352,15 @@ with aba[1]:
                             st.rerun()
             st.markdown("---")
             st.subheader("📑 XML atualizado")
-            st.code(gerar_xml(st.session_state.formulario), language="xml")
+            gfe_xml_string = gerar_xml(st.session_state.formulario)
+            st.code(gfe_xml_string, language="xml")
+            st.download_button(
+                label="⬇️ Baixar como .GFE",
+                data=gfe_xml_string.encode("utf-8"),
+                file_name="formulario_exportado.gfe",
+                mime="application/xml"
+            )
         else:
-            st.info("Importe um XML para começar a edição.")
+            st.info("Importe um arquivo para começar a edição.")
     with colR:
         preview_formulario(st.session_state.formulario, context_key="import")
