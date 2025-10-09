@@ -293,7 +293,7 @@ with aba[1]:
     colL, colR = st.columns(2)
     with colL:
         st.title("Importar / Editar XML")
-        up = st.file_uploader("Selecione um arquivo XML", type=["xml"], key="uploader_xml_editor")
+        up = st.file_uploader("Selecione um arquivo XML ou GFE", type=["xml", "gfe"], key="uploader_xml_editor")
         if up and st.button("Carregar XML"):
             try:
                 xml_str = up.getvalue().decode("utf-8")
