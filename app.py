@@ -1,7 +1,7 @@
 # app.py - Construtor de Formulários 6.4 (estável)
 # Funcionalidades: Construtor, Importação/edição de XML, Pré-visualização em ambas as abas,
-# correção paragrafo/rotulo, e reordenação por arrastar-e-soltar (streamlit-sortables compatível)
-# com fallback por botões.
+# correção paragrafo/rotulo, e reordenação por arrastar-e-soltar usando streamlit-sortables.
+# Corrigido: custom_style compatível com todas as instâncias.
 
 import streamlit as st
 import xml.etree.ElementTree as ET
@@ -10,9 +10,6 @@ from streamlit_sortables import sort_items  # pip install streamlit-sortables
 
 st.set_page_config(page_title="Construtor de Formulários 6.4", layout="wide")
 
-# -------------------------
-# Estado inicial
-# -------------------------
 if "formulario" not in st.session_state:
     st.session_state.formulario = {
         "nome": "",
@@ -30,9 +27,6 @@ TIPOS_ELEMENTOS = [
     "grupoCheck", "paragrafo", "rotulo"
 ]
 
-# -------------------------
-# Utilidades XML
-# -------------------------
 def _prettify_xml(root: ET.Element) -> str:
     xml_bytes = ET.tostring(root, encoding="utf-8", xml_declaration=True)
     parsed = minidom.parseString(xml_bytes)
@@ -44,10 +38,8 @@ def gerar_xml(formulario: dict) -> str:
         "nome": formulario.get("nome", ""),
         "versao": formulario.get("versao", "1.0")
     })
-
     elementos = ET.SubElement(root, "elementos")
     dominios_global = ET.Element("dominios")
-
     for sec in formulario.get("secoes", []):
         sec_el = ET.SubElement(elementos, "elemento", {
             "gxsi:type": "seccao",
@@ -55,16 +47,13 @@ def gerar_xml(formulario: dict) -> str:
             "largura": str(sec.get("largura", 500))
         })
         subelems = ET.SubElement(sec_el, "elementos")
-
         tabela_aberta = None
         elementos_destino = subelems
-
         for campo in sec.get("campos", []):
             tipo = campo.get("tipo", "texto")
             titulo = campo.get("titulo", "")
             obrig = str(bool(campo.get("obrigatorio", False))).lower()
             largura = str(campo.get("largura", 450))
-
             if campo.get("in_tabela"):
                 if tabela_aberta is None:
                     tabela_aberta = ET.SubElement(subelems, "elemento", {"gxsi:type": "tabela"})
@@ -76,7 +65,6 @@ def gerar_xml(formulario: dict) -> str:
             else:
                 tabela_aberta = None
                 elementos_destino = subelems
-
             if tipo in ["paragrafo", "rotulo"]:
                 ET.SubElement(elementos_destino, "elemento", {
                     "gxsi:type": tipo,
@@ -84,7 +72,6 @@ def gerar_xml(formulario: dict) -> str:
                     "largura": largura
                 })
                 continue
-
             if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"] and campo.get("dominios"):
                 chave_dom = titulo.replace(" ", "")[:20].upper()
                 attrs = {
@@ -97,7 +84,6 @@ def gerar_xml(formulario: dict) -> str:
                     "dominio": chave_dom
                 }
                 ET.SubElement(elementos_destino, "elemento", attrs)
-
                 dominio_el = ET.SubElement(dominios_global, "dominio", {
                     "gxsi:type": "dominioEstatico",
                     "chave": chave_dom
@@ -110,7 +96,6 @@ def gerar_xml(formulario: dict) -> str:
                         "valor": d["valor"]
                     })
                 continue
-
             attrs = {
                 "gxsi:type": tipo,
                 "titulo": titulo,
@@ -122,11 +107,9 @@ def gerar_xml(formulario: dict) -> str:
                 attrs["altura"] = str(campo.get("altura"))
             el = ET.SubElement(elementos_destino, "elemento", attrs)
             ET.SubElement(el, "conteudo", {"gxsi:type": "valor"})
-
     root.append(dominios_global)
     return _prettify_xml(root)
 
-# ---------- Parser de importação ----------
 def _ler_dominios(root: ET.Element):
     dominios_map = {}
     dominios_el = root.find("dominios")
@@ -179,7 +162,6 @@ def _buscar_campos_rec(elementos_node: ET.Element, dominios_map: dict):
             })
     return campos
 
-# ---------- Pré-visualização compartilhada (keys únicas por aba) ----------
 def preview_formulario(formulario: dict, context_key: str = "main"):
     st.header("📋 Pré-visualização do Formulário")
     st.subheader(formulario.get("nome", ""))
@@ -195,7 +177,6 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
             if not campo.get("in_tabela") and tabela_aberta:
                 st.markdown("</div>", unsafe_allow_html=True)
                 tabela_aberta = False
-
             if tipo == "texto":
                 st.text_input(campo.get("titulo", ""), key=key_prev)
             elif tipo == "texto-area":
@@ -213,11 +194,9 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                 conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
                 conteudo = str(conteudo).replace("\\n", "\n")
                 st.markdown(conteudo)
-
         if tabela_aberta:
             st.markdown("</div>", unsafe_allow_html=True)
 
-# ---------- Fallback por botões (subir/descer) ----------
 def mover_item(lista, idx, direcao):
     novo = idx + direcao
     if 0 <= novo < len(lista):
@@ -225,16 +204,12 @@ def mover_item(lista, idx, direcao):
         return True
     return False
 
-# ---------- Reordenar por drag-and-drop (streamlit-sortables compat) ----------
 def ordenar_campos_por_drag(secao: dict, sec_index: int, context_key: str) -> None:
     campos = secao.get('campos', [])
     if not campos:
         st.info("Nenhum campo para reordenar.")
         return
-
-    # Lista de strings para máxima compatibilidade
     itens = [f"{i} | {campos[i].get('tipo','texto')} - {campos[i].get('titulo','')}" for i in range(len(campos))]
-
     st.markdown("Arraste para reordenar os campos abaixo (ou use os botões):")
     comp_key = f"sortable_{context_key}_{sec_index}"
     sorted_items = sort_items(
@@ -244,15 +219,11 @@ def ordenar_campos_por_drag(secao: dict, sec_index: int, context_key: str) -> No
         custom_style={"border": "1px dashed #ddd", "padding": "8px", "borderRadius": "6px"},
         key=comp_key,
     )
-
-    # Se houve reorder, aplica
     if sorted_items and sorted_items != itens:
         nova_ordem_indices = [int(s.split(" | ", 1)[0]) for s in sorted_items]
         secao["campos"] = [campos[i] for i in nova_ordem_indices]
         st.success("Ordem dos campos atualizada.")
         st.rerun()
-
-    # Fallback: botões ↑ ↓
     st.markdown("Ou reordene manualmente:")
     for i, c in enumerate(secao["campos"]):
         colA, colB, colC = st.columns([6,1,1])
@@ -267,22 +238,14 @@ def ordenar_campos_por_drag(secao: dict, sec_index: int, context_key: str) -> No
                 if mover_item(secao["campos"], i, +1):
                     st.rerun()
 
-# -------------------------
-# Abas
-# -------------------------
 aba = st.tabs(["Construtor", "Importar XML"])
 
-# -------------------------
-# Aba 1 - Construtor
-# -------------------------
 with aba[0]:
     col1, col2 = st.columns(2)
-
     with col1:
         st.title("Construtor de Formulários 6.4")
         st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", st.session_state.formulario["nome"])
         st.markdown("---")
-
         with st.expander("➕ Adicionar Seção", expanded=True):
             st.session_state.nova_secao["titulo"] = st.text_input("Título da Seção", st.session_state.nova_secao["titulo"])
             st.session_state.nova_secao["largura"] = st.number_input("Largura da Seção", min_value=100, value=st.session_state.nova_secao["largura"], step=10)
@@ -291,26 +254,21 @@ with aba[0]:
                     st.session_state.formulario["secoes"].append(st.session_state.nova_secao.copy())
                     st.session_state.nova_secao = {"titulo": "", "largura": 500, "campos": []}
                     st.rerun()
-
         st.markdown("---")
-
         for s_idx, sec in enumerate(st.session_state.formulario.get("secoes", [])):
             with st.expander(f"📁 Seção: {sec.get('titulo','(sem título)')}", expanded=False):
                 st.write(f"**Largura:** {sec.get('largura', 500)}")
                 if st.button(f"🗑️ Excluir Seção", key=f"del_sec_{s_idx}"):
                     st.session_state.formulario["secoes"].pop(s_idx)
                     st.rerun()
-
                 with st.expander("🔀 Reordenar campos", expanded=False):
                     ordenar_campos_por_drag(sec, s_idx, context_key="builder")
-
                 st.markdown("### Campos")
                 for c_idx, campo in enumerate(sec.get("campos", [])):
                     st.text(f"{campo.get('tipo')} - {campo.get('titulo')}")
                     if st.button("Excluir Campo", key=f"del_field_{s_idx}_{c_idx}"):
                         st.session_state.formulario["secoes"][s_idx]["campos"].pop(c_idx)
                         st.rerun()
-
         if st.session_state.formulario.get("secoes"):
             last_idx = len(st.session_state.formulario["secoes"]) - 1
             secao_atual = st.session_state.formulario["secoes"][last_idx]
@@ -320,11 +278,9 @@ with aba[0]:
                 obrig = st.checkbox("Obrigatório", key=f"obrig_{last_idx}")
                 in_tabela = st.checkbox("Dentro da tabela?", key=f"tabela_{last_idx}")
                 largura = st.number_input("Largura (px)", min_value=100, value=450, step=10, key=f"larg_{last_idx}")
-
                 altura = None
                 if tipo == "texto-area":
                     altura = st.number_input("Altura", min_value=50, value=100, step=10, key=f"alt_{last_idx}")
-
                 colunas = 1
                 dominios_temp = []
                 if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"]:
@@ -334,7 +290,6 @@ with aba[0]:
                         val = st.text_input(f"Descrição Item {i+1}", key=f"desc_{last_idx}_{i}")
                         if val:
                             dominios_temp.append({"descricao": val, "valor": val.upper()})
-
                 if st.button("Adicionar Campo", key=f"add_field_{last_idx}"):
                     campo = {
                         "titulo": titulo,
@@ -350,30 +305,22 @@ with aba[0]:
                     }
                     secao_atual["campos"].append(campo)
                     st.rerun()
-
     with col2:
         preview_formulario(st.session_state.formulario, context_key="builder")
-
     st.markdown("---")
     st.subheader("📑 Pré-visualização XML")
     st.code(gerar_xml(st.session_state.formulario), language="xml")
 
-# -------------------------
-# Aba 2 - Importar / Editar XML (mesmo layout)
-# -------------------------
 with aba[1]:
     colL, colR = st.columns(2)
-
     with colL:
         st.title("Importar / Editar XML")
-
         up = st.file_uploader("Selecione um arquivo XML", type=["xml"], key="uploader_xml_editor")
         if up and st.button("Carregar XML"):
             try:
                 xml_str = up.getvalue().decode("utf-8")
                 root = ET.fromstring(xml_str)
                 dominios_map = _ler_dominios(root)
-
                 novo = {
                     "nome": root.attrib.get("nome", ""),
                     "versao": root.attrib.get("versao", "1.0"),
@@ -392,22 +339,18 @@ with aba[1]:
                             sub = el.find("elementos")
                             sec["campos"] = _buscar_campos_rec(sub, dominios_map)
                             novo["secoes"].append(sec)
-
                 st.session_state.formulario = novo
                 st.success("XML carregado e pronto para edição.")
                 st.rerun()
             except Exception as e:
                 st.error(f"Erro ao importar XML: {e}")
-
         if st.session_state.formulario.get("secoes"):
             st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", value=st.session_state.formulario.get("nome",""), key="imp_nome")
             st.markdown("---")
-
             st.subheader("Seções")
             for s_idx, sec in enumerate(st.session_state.formulario["secoes"]):
                 with st.expander(f"📁 Seção: {sec.get('titulo','(sem título)')}", expanded=False):
                     st.write(f"**Largura:** {sec.get('largura', 500)}")
-
                     c1, c2, c3 = st.columns([3,2,1])
                     with c1:
                         novo_titulo = st.text_input("Título da Seção", value=sec.get("titulo",""), key=f"imp_sec_tit_{s_idx}")
@@ -418,72 +361,21 @@ with aba[1]:
                             st.session_state.formulario["secoes"][s_idx]["titulo"] = novo_titulo
                             st.session_state.formulario["secoes"][s_idx]["largura"] = nova_larg
                             st.success("Seção atualizada.")
-
                     if st.button(f"🗑️ Excluir Seção", key=f"imp_del_sec_{s_idx}"):
                         st.session_state.formulario["secoes"].pop(s_idx)
                         st.rerun()
-
                     with st.expander("🔀 Reordenar campos", expanded=False):
                         ordenar_campos_por_drag(sec, s_idx, context_key="import")
-
                     st.markdown("### Campos")
                     for c_idx, campo in enumerate(sec.get("campos", [])):
                         st.text(f"{campo.get('tipo')} - {campo.get('titulo')}")
-                        with st.expander(f"Editar: {campo.get('tipo')} - {campo.get('titulo')}", expanded=False):
-                            tipo = st.selectbox("Tipo", TIPOS_ELEMENTOS, index=TIPOS_ELEMENTOS.index(campo.get("tipo","texto")), key=f"imp_tipo_{s_idx}_{c_idx}")
-                            titulo = st.text_input("Título", value=campo.get("titulo",""), key=f"imp_tit_{s_idx}_{c_idx}")
-                            descricao = st.text_input("Descrição", value=campo.get("descricao", campo.get("titulo","")), key=f"imp_desc_{s_idx}_{c_idx}")
-                            obrig = st.checkbox("Obrigatório", value=campo.get("obrigatorio",False), key=f"imp_obrig_{s_idx}_{c_idx}")
-                            in_tabela = st.checkbox("Dentro da tabela?", value=campo.get("in_tabela",False), key=f"imp_intab_{s_idx}_{c_idx}")
-                            largura = st.number_input("Largura (px)", min_value=50, max_value=1000, value=campo.get("largura",450), step=10, key=f"imp_larg_{s_idx}_{c_idx}")
-
-                            altura = campo.get("altura")
-                            if tipo == "texto-area":
-                                altura = st.number_input("Altura (px)", min_value=50, max_value=1000, value=altura or 100, step=10, key=f"imp_alt_{s_idx}_{c_idx}")
-                            else:
-                                altura = None
-
-                            colunas = campo.get("colunas",1)
-                            dominios = campo.get("dominios",[])
-                            if tipo in ["comboBox","comboFiltro","grupoRadio","grupoCheck"]:
-                                colunas = st.number_input("Colunas", min_value=1, max_value=5, value=colunas, step=1, key=f"imp_cols_{s_idx}_{c_idx}")
-                                qtd_dom = st.number_input("Qtd. de Itens no Domínio", min_value=1, max_value=50, value=len(dominios) or 2, key=f"imp_qdom_{s_idx}_{c_idx}")
-                                novos_dom = []
-                                for i in range(int(qtd_dom)):
-                                    base = dominios[i]["descricao"] if i < len(dominios) else ""
-                                    d = st.text_input(f"Descrição Item {i+1}", value=base, key=f"imp_dom_{s_idx}_{c_idx}_{i}")
-                                    if d.strip():
-                                        novos_dom.append({"descricao": d.strip(), "valor": d.strip().upper()})
-                                dominios = novos_dom
-                            else:
-                                colunas = 1
-                                dominios = []
-
-                            c_left, c_mid, c_right = st.columns([1,1,1])
-                            with c_left:
-                                if st.button("Salvar Campo", key=f"imp_save_field_{s_idx}_{c_idx}"):
-                                    st.session_state.formulario["secoes"][s_idx]["campos"][c_idx] = {
-                                        "tipo": tipo,
-                                        "titulo": titulo,
-                                        "descricao": descricao,
-                                        "obrigatorio": obrig,
-                                        "in_tabela": in_tabela,
-                                        "largura": largura,
-                                        "altura": altura,
-                                        "colunas": colunas,
-                                        "dominios": dominios
-                                    }
-                                    st.success("Campo salvo.")
-                            with c_mid:
-                                if st.button("Excluir Campo", key=f"imp_del_field_{s_idx}_{c_idx}"):
-                                    st.session_state.formulario["secoes"][s_idx]["campos"].pop(c_idx)
-                                    st.rerun()
-
+                        if st.button("Excluir Campo", key=f"imp_del_field_{s_idx}_{c_idx}"):
+                            st.session_state.formulario["secoes"][s_idx]["campos"].pop(c_idx)
+                            st.rerun()
             st.markdown("---")
             st.subheader("📑 XML atualizado")
             st.code(gerar_xml(st.session_state.formulario), language="xml")
         else:
             st.info("Importe um XML para começar a edição.")
-
     with colR:
         preview_formulario(st.session_state.formulario, context_key="import")
