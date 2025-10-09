@@ -298,7 +298,8 @@ with aba[0]:
                 label="⬇️ Baixar como .GFE",
                 data=gfe_xml_string.encode("utf-8"),
                 file_name="formulario_exportado.gfe",
-                mime="application/xml"
+                mime="application/xml",
+                key="download_gfe_builder"
             )
 
 with aba[1]:
@@ -370,7 +371,8 @@ with aba[1]:
                 label="⬇️ Baixar como .GFE",
                 data=gfe_xml_string.encode("utf-8"),
                 file_name="formulario_exportado.gfe",
-                mime="application/xml"
+                mime="application/xml",
+                key="download_gfe_import"
             )
         else:
             st.info("Importe um arquivo para começar a edição.")
