@@ -174,6 +174,8 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                 st.text_input(campo.get("titulo", ""), key=key_prev)
             elif tipo == "texto-area":
                 st.text_area(campo.get("titulo", ""), height=campo.get("altura", 100), key=key_prev)
+            elif tipo == "data":
+                st.date_input(campo.get("titulo", ""), key=key_prev)
             elif tipo in ["comboBox", "comboFiltro", "grupoCheck"]:
                 st.multiselect(campo.get("titulo", ""), [d["descricao"] for d in campo.get("dominios", [])], key=key_prev)
             elif tipo == "grupoRadio":
@@ -248,7 +250,7 @@ with aba[0]:
                         st.session_state.formulario["secoes"][s_idx]["campos"].pop(c_idx)
                         st.rerun()
 
-        # Parte alterada para seleção de seção na adição de campo
+        # Parte para seleção de seção na adição de campo
         if st.session_state.formulario.get("secoes"):
             secao_opcoes = [sec.get("titulo", f"Seção {i}") for i, sec in enumerate(st.session_state.formulario["secoes"])]
             indice_selecao = st.selectbox("Selecione a Seção para adicionar um campo", options=range(len(secao_opcoes)), format_func=lambda i: secao_opcoes[i])
