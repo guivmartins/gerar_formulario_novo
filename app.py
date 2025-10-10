@@ -2,7 +2,7 @@ import streamlit as st
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
-st.set_page_config(page_title="Construtor de Formulários", layout="wide")
+st.set_page_config(page_title="Construtor de Formulários 7.1", layout="wide")
 
 if "formulario" not in st.session_state:
     st.session_state.formulario = {
@@ -221,7 +221,7 @@ aba = st.tabs(["Construtor", "Importar arquivo"])
 with aba[0]:
     col1, col2 = st.columns(2)
     with col1:
-        st.title("Construtor de Formulários")
+        st.title("Construtor de Formulários 7.1")
         st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", st.session_state.formulario["nome"])
         st.markdown("---")
         with st.expander("➕ Adicionar Seção", expanded=True):
@@ -247,28 +247,33 @@ with aba[0]:
                     if st.button("Excluir Campo", key=f"del_field_{s_idx}_{c_idx}"):
                         st.session_state.formulario["secoes"][s_idx]["campos"].pop(c_idx)
                         st.rerun()
+
+        # Parte alterada para seleção de seção na adição de campo
         if st.session_state.formulario.get("secoes"):
-            last_idx = len(st.session_state.formulario["secoes"]) - 1
-            secao_atual = st.session_state.formulario["secoes"][last_idx]
+            secao_opcoes = [sec.get("titulo", f"Seção {i}") for i, sec in enumerate(st.session_state.formulario["secoes"])]
+            indice_selecao = st.selectbox("Selecione a Seção para adicionar um campo", options=range(len(secao_opcoes)), format_func=lambda i: secao_opcoes[i])
+
+            secao_atual = st.session_state.formulario["secoes"][indice_selecao]
+
             with st.expander(f"➕ Adicionar Campos à seção: {secao_atual.get('titulo','')}", expanded=True):
-                tipo = st.selectbox("Tipo do Campo", TIPOS_ELEMENTOS, key=f"type_{last_idx}")
-                titulo = st.text_input("Título do Campo", key=f"title_{last_idx}")
-                obrig = st.checkbox("Obrigatório", key=f"obrig_{last_idx}")
-                in_tabela = st.checkbox("Dentro da tabela?", key=f"tabela_{last_idx}")
-                largura = st.number_input("Largura (px)", min_value=100, value=450, step=10, key=f"larg_{last_idx}")
+                tipo = st.selectbox("Tipo do Campo", TIPOS_ELEMENTOS, key=f"type_add_{indice_selecao}")
+                titulo = st.text_input("Título do Campo", key=f"title_add_{indice_selecao}")
+                obrig = st.checkbox("Obrigatório", key=f"obrig_add_{indice_selecao}")
+                in_tabela = st.checkbox("Dentro da tabela?", key=f"tabela_add_{indice_selecao}")
+                largura = st.number_input("Largura (px)", min_value=100, value=450, step=10, key=f"larg_add_{indice_selecao}")
                 altura = None
                 if tipo == "texto-area":
-                    altura = st.number_input("Altura", min_value=50, value=100, step=10, key=f"alt_{last_idx}")
+                    altura = st.number_input("Altura", min_value=50, value=100, step=10, key=f"alt_add_{indice_selecao}")
                 colunas = 1
                 dominios_temp = []
                 if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"]:
-                    colunas = st.number_input("Colunas", min_value=1, max_value=5, value=1, key=f"colunas_{last_idx}")
-                    qtd_dom = st.number_input("Qtd. de Itens no Domínio", min_value=1, max_value=50, value=2, key=f"qtd_dom_{last_idx}")
+                    colunas = st.number_input("Colunas", min_value=1, max_value=5, value=1, key=f"colunas_add_{indice_selecao}")
+                    qtd_dom = st.number_input("Qtd. de Itens no Domínio", min_value=1, max_value=50, value=2, key=f"qtd_dom_add_{indice_selecao}")
                     for i in range(int(qtd_dom)):
-                        val = st.text_input(f"Descrição Item {i+1}", key=f"desc_{last_idx}_{i}")
+                        val = st.text_input(f"Descrição Item {i+1}", key=f"desc_add_{indice_selecao}_{i}")
                         if val:
                             dominios_temp.append({"descricao": val, "valor": val.upper()})
-                if st.button("Adicionar Campo", key=f"add_field_{last_idx}"):
+                if st.button("Adicionar Campo", key=f"add_field_{indice_selecao}"):
                     campo = {
                         "titulo": titulo,
                         "descricao": titulo,
@@ -283,6 +288,7 @@ with aba[0]:
                     }
                     secao_atual["campos"].append(campo)
                     st.rerun()
+
     with col2:
         preview_formulario(st.session_state.formulario, context_key="builder")
     st.markdown("---")
