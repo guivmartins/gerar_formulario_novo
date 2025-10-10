@@ -2,7 +2,7 @@ import streamlit as st
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
-st.set_page_config(page_title="Construtor de Formulários 6.4", layout="wide")
+st.set_page_config(page_title="Construtor de Formulários", layout="wide")
 
 if "formulario" not in st.session_state:
     st.session_state.formulario = {
