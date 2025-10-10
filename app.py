@@ -289,19 +289,14 @@ with aba[0]:
     st.subheader("📑 Pré-visualização XML")
     xml_preview = gerar_xml(st.session_state.formulario)
     st.code(xml_preview, language="xml")
-    # Botões para download
+    nome_arquivo = st.session_state.formulario.get("nome", "formulario") + ".gfe"
     st.download_button(
-        label="Baixar XML",
+        label="Baixar Arquivo",
         data=xml_preview.encode("utf-8"),
-        file_name="formulario.xml",
-        mime="application/xml"
-    )
-    st.download_button(
-        label="Baixar GFE (XML equivalente)",
-        data=xml_preview.encode("utf-8"),
-        file_name="formulario.gfe",
+        file_name=nome_arquivo,
         mime="application/xml",
-        help="GFE é tratado como XML para este fluxo."
+        help="O arquivo .gfe é 100% compatível com XML do sistema.",
+        key="download_gfe_builder"
     )
 
 with aba[1]:
@@ -369,18 +364,14 @@ with aba[1]:
             st.subheader("📑 XML atualizado")
             xml_atual = gerar_xml(st.session_state.formulario)
             st.code(xml_atual, language="xml")
+            nome_arquivo_imp = st.session_state.formulario.get("nome", "formulario") + ".gfe"
             st.download_button(
-                label="Baixar XML",
+                label="Baixar Arquivo",
                 data=xml_atual.encode("utf-8"),
-                file_name="formulario.xml",
-                mime="application/xml"
-            )
-            st.download_button(
-                label="Baixar GFE (XML equivalente)",
-                data=xml_atual.encode("utf-8"),
-                file_name="formulario.gfe",
+                file_name=nome_arquivo_imp,
                 mime="application/xml",
-                help="GFE é tratado como XML para este fluxo."
+                help="O arquivo .gfe é 100% compatível com XML do sistema.",
+                key="download_gfe_import"
             )
         else:
             st.info("Importe um XML ou GFE para começar a edição.")
