@@ -2,7 +2,7 @@ import streamlit as st
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
-st.set_page_config(page_title="Construtor de Formulários 7.1", layout="wide")
+st.set_page_config(page_title="Construtor de Formulários 7.2", layout="wide")
 
 if "formulario" not in st.session_state:
     st.session_state.formulario = {
@@ -176,7 +176,11 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                 st.text_area(campo.get("titulo", ""), height=campo.get("altura", 100), key=key_prev)
             elif tipo == "data":
                 st.date_input(campo.get("titulo", ""), key=key_prev)
-            elif tipo in ["comboBox", "comboFiltro", "grupoCheck"]:
+            elif tipo == "grupoCheck":
+                st.markdown(f"**{campo.get('titulo', '')}**")
+                for idx, dom in enumerate(campo.get("dominios", [])):
+                    st.checkbox(dom["descricao"], key=f"{key_prev}_{idx}")
+            elif tipo in ["comboBox", "comboFiltro"]:
                 st.multiselect(campo.get("titulo", ""), [d["descricao"] for d in campo.get("dominios", [])], key=key_prev)
             elif tipo == "grupoRadio":
                 st.radio(campo.get("titulo", ""), [d["descricao"] for d in campo.get("dominios", [])], key=key_prev)
@@ -223,7 +227,7 @@ aba = st.tabs(["Construtor", "Importar arquivo"])
 with aba[0]:
     col1, col2 = st.columns(2)
     with col1:
-        st.title("Construtor de Formulários 7.1")
+        st.title("Construtor de Formulários 7.2")
         st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", st.session_state.formulario["nome"])
         st.markdown("---")
         with st.expander("➕ Adicionar Seção", expanded=True):
@@ -250,7 +254,7 @@ with aba[0]:
                         st.session_state.formulario["secoes"][s_idx]["campos"].pop(c_idx)
                         st.rerun()
 
-        # Parte para seleção de seção na adição de campo
+        # Seleção de seção para adicionar campo
         if st.session_state.formulario.get("secoes"):
             secao_opcoes = [sec.get("titulo", f"Seção {i}") for i, sec in enumerate(st.session_state.formulario["secoes"])]
             indice_selecao = st.selectbox("Selecione a Seção para adicionar um campo", options=range(len(secao_opcoes)), format_func=lambda i: secao_opcoes[i])
