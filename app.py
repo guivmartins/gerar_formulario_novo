@@ -1,4 +1,3 @@
-# com importação de xml e ordenação de elementos. streamlit>=1.25 streamlit-sortables>=0.3.0
 import streamlit as st
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
@@ -218,7 +217,7 @@ def ordenar_campos_por_drag(secao: dict, sec_index: int, context_key: str) -> No
                 if mover_item(secao["campos"], i, +1):
                     st.rerun()
 
-aba = st.tabs(["Construtor", "Importar XML"])
+aba = st.tabs(["Construtor", "Importar arquivo"])
 with aba[0]:
     col1, col2 = st.columns(2)
     with col1:
@@ -288,17 +287,32 @@ with aba[0]:
         preview_formulario(st.session_state.formulario, context_key="builder")
     st.markdown("---")
     st.subheader("📑 Pré-visualização XML")
-    st.code(gerar_xml(st.session_state.formulario), language="xml")
+    xml_preview = gerar_xml(st.session_state.formulario)
+    st.code(xml_preview, language="xml")
+    # Botões para download
+    st.download_button(
+        label="Baixar XML",
+        data=xml_preview.encode("utf-8"),
+        file_name="formulario.xml",
+        mime="application/xml"
+    )
+    st.download_button(
+        label="Baixar GFE (XML equivalente)",
+        data=xml_preview.encode("utf-8"),
+        file_name="formulario.gfe",
+        mime="application/xml",
+        help="GFE é tratado como XML para este fluxo."
+    )
 
 with aba[1]:
     colL, colR = st.columns(2)
     with colL:
-        st.title("Importar / Editar XML")
-        up = st.file_uploader("Selecione um arquivo XML", type=["xml"], key="uploader_xml_editor")
-        if up and st.button("Carregar XML"):
+        st.title("Importar arquivo")
+        up = st.file_uploader("Selecione um arquivo XML ou GFE", type=["xml","gfe"], key="uploader_xml_editor")
+        if up and st.button("Carregar"):
             try:
-                xml_str = up.getvalue().decode("utf-8")
-                root = ET.fromstring(xml_str)
+                content = up.getvalue().decode("utf-8")
+                root = ET.fromstring(content)
                 dominios_map = _ler_dominios(root)
                 novo = {
                     "nome": root.attrib.get("nome", ""),
@@ -319,10 +333,10 @@ with aba[1]:
                             sec["campos"] = _buscar_campos_rec(sub, dominios_map)
                             novo["secoes"].append(sec)
                 st.session_state.formulario = novo
-                st.success("XML carregado e pronto para edição.")
+                st.success("Arquivo carregado e pronto para edição.")
                 st.rerun()
             except Exception as e:
-                st.error(f"Erro ao importar XML: {e}")
+                st.error(f"Erro ao importar Arquivo: {e}")
         if st.session_state.formulario.get("secoes"):
             st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", value=st.session_state.formulario.get("nome",""), key="imp_nome")
             st.markdown("---")
@@ -353,8 +367,22 @@ with aba[1]:
                             st.rerun()
             st.markdown("---")
             st.subheader("📑 XML atualizado")
-            st.code(gerar_xml(st.session_state.formulario), language="xml")
+            xml_atual = gerar_xml(st.session_state.formulario)
+            st.code(xml_atual, language="xml")
+            st.download_button(
+                label="Baixar XML",
+                data=xml_atual.encode("utf-8"),
+                file_name="formulario.xml",
+                mime="application/xml"
+            )
+            st.download_button(
+                label="Baixar GFE (XML equivalente)",
+                data=xml_atual.encode("utf-8"),
+                file_name="formulario.gfe",
+                mime="application/xml",
+                help="GFE é tratado como XML para este fluxo."
+            )
         else:
-            st.info("Importe um XML para começar a edição.")
+            st.info("Importe um XML ou GFE para começar a edição.")
     with colR:
         preview_formulario(st.session_state.formulario, context_key="import")
