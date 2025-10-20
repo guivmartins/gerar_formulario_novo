@@ -4,7 +4,6 @@ from xml.dom import minidom
 
 st.set_page_config(page_title="Construtor de Formulários 7.3", layout="wide")
 
-# Inicialização do estado para controle de tabela/linha aberta
 if "formulario" not in st.session_state:
     st.session_state.formulario = {
         "nome": "",
@@ -14,13 +13,6 @@ if "formulario" not in st.session_state:
     }
 if "nova_secao" not in st.session_state:
     st.session_state.nova_secao = {"titulo": "", "largura": 500, "campos": []}
-
-if "tabela_aberta" not in st.session_state:
-    st.session_state.tabela_aberta = False
-if "linha_aberta" not in st.session_state:
-    st.session_state.linha_aberta = False
-if "tabela_atual" not in st.session_state:
-    st.session_state.tabela_atual = []
 
 TIPOS_ELEMENTOS = [
     "texto", "texto-area", "data", "moeda", "cpf", "cnpj", "email",
@@ -49,9 +41,6 @@ def gerar_xml(formulario: dict) -> str:
             "largura": str(sec.get("largura", 500))
         })
         subelems = ET.SubElement(sec_el, "elementos")
-
-        campos = sec.get("campos", [])
-        campos_sem_tabela = []
         tabelas = sec.get("tabelas", [])
 
         if tabelas:
@@ -111,10 +100,10 @@ def gerar_xml(formulario: dict) -> str:
                                 attrs["altura"] = str(campo.get("altura"))
                             el = ET.SubElement(elementos_tag, "elemento", attrs)
                             ET.SubElement(el, "conteudo", {"gxsi:type": "valor"})
-        for campo in campos:
-            if not campo.get("in_tabela", False):
-                campos_sem_tabela.append(campo)
-        for campo in campos_sem_tabela:
+
+        # Campos fora de tabela
+        for campo in sec.get("campos", []):
+            if campo.get("in_tabela", False): continue
             tipo = campo.get("tipo", "texto")
             titulo = campo.get("titulo", "")
             obrig = str(bool(campo.get("obrigatorio", False))).lower()
@@ -204,7 +193,6 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                                     conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
                                     conteudo = str(conteudo).replace("\\n", "\n")
                                     st.markdown(conteudo)
-        # depois mostra campos que não fazem parte de tabelas
         for c_idx, campo in enumerate(sec.get("campos", [])):
             if campo.get("in_tabela"):
                 continue
@@ -235,58 +223,44 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                 st.markdown(conteudo)
 
 def adicionar_campo_secao(secao, campo, finalizar_linha=False, finalizar_tabela=False):
+    # Controle por seção!
     if campo.get("in_tabela"):
-        if not st.session_state.tabela_aberta:
-            st.session_state.tabela_atual = []
-            st.session_state.tabela_aberta = True
-            st.session_state.linha_aberta = True
-            st.session_state.tabela_atual.append([])  # add primeira linha
-            st.success("Tabela aberta automaticamente.")
-        if st.session_state.linha_aberta:
-            linha_atual = st.session_state.tabela_atual[-1]
+        if "tabela_aberta" not in secao or not secao.get("tabela_aberta", False):
+            secao["tabelas"] = secao.get("tabelas", [])
+            secao["tabela_atual"] = []
+            secao["tabela_aberta"] = True
+            secao["linha_aberta"] = True
+            secao["tabela_atual"].append([])
+        if secao["linha_aberta"]:
+            linha_atual = secao["tabela_atual"][-1]
             while len(linha_atual) < 2:
                 linha_atual.append([])
+            # Insere na primeira célula vazia (até 1 campo por célula)
             if len(linha_atual[0]) < 1:
                 linha_atual[0].append(campo)
-                st.success(f"Campo '{campo.get('titulo')}' adicionado na linha atual, primeira célula.")
             elif len(linha_atual[1]) < 1:
                 linha_atual[1].append(campo)
-                st.success(f"Campo '{campo.get('titulo')}' adicionado na linha atual, segunda célula.")
             else:
-                st.warning("Linha atual está cheia (2 células). Finalize a linha para adicionar novo campo.")
+                st.warning("Linha cheia, finalize a linha para adicionar novo campo.")
         else:
-            st.session_state.linha_aberta = True
-            st.session_state.tabela_atual.append([[campo]])
-            st.success("Nova linha criada e campo adicionado na primeira célula.")
+            secao["linha_aberta"] = True
+            secao["tabela_atual"].append([[campo]])
         if finalizar_linha:
-            finalizar_linha_func()
+            secao["linha_aberta"] = False
         if finalizar_tabela:
-            finalizar_tabela_func(secao)
+            secao["tabelas"].append(secao["tabela_atual"])
+            secao["tabela_atual"] = []
+            secao["tabela_aberta"] = False
+            secao["linha_aberta"] = False
     else:
-        if st.session_state.tabela_aberta:
-            finalizar_linha_func()
-            finalizar_tabela_func(secao)
-        secao["campos"].append(campo)
-        st.success(f"Campo '{campo.get('titulo')}' adicionado fora da tabela.")
-
-def finalizar_linha_func():
-    if st.session_state.linha_aberta:
-        st.session_state.linha_aberta = False
-        st.success("Linha atual finalizada.")
-    else:
-        st.warning("Nenhuma linha aberta para finalizar.")
-
-def finalizar_tabela_func(secao):
-    if st.session_state.tabela_aberta:
-        if "tabelas" not in secao:
-            secao["tabelas"] = []
-        secao["tabelas"].append(st.session_state.tabela_atual)
-        st.session_state.tabela_aberta = False
-        st.session_state.linha_aberta = False
-        st.session_state.tabela_atual = []
-        st.success("Tabela finalizada e adicionada à seção.")
-    else:
-        st.warning("Nenhuma tabela aberta para finalizar.")
+        if secao.get("tabela_aberta", False):
+            # encerra tabela aberta automaticamente
+            if secao.get("linha_aberta", False):
+                secao["linha_aberta"] = False
+            secao["tabelas"].append(secao["tabela_atual"])
+            secao["tabela_atual"] = []
+            secao["tabela_aberta"] = False
+        secao.setdefault("campos", []).append(campo)
 
 aba = st.tabs(["Construtor", "Importar arquivo"])
 
@@ -329,9 +303,7 @@ with aba[0]:
         if st.session_state.formulario.get("secoes"):
             secao_opcoes = [sec.get("titulo", f"Seção {i}") for i, sec in enumerate(st.session_state.formulario["secoes"])]
             indice_selecao = st.selectbox("Selecione a Seção para adicionar um campo", options=range(len(secao_opcoes)), format_func=lambda i: secao_opcoes[i])
-
             secao_atual = st.session_state.formulario["secoes"][indice_selecao]
-
             with st.expander(f"➕ Adicionar Campos à seção: {secao_atual.get('titulo','')}", expanded=True):
                 tipo = st.selectbox("Tipo do Campo", TIPOS_ELEMENTOS, key=f"type_add_{indice_selecao}")
                 titulo = st.text_input("Título do Campo", key=f"title_add_{indice_selecao}")
@@ -367,7 +339,6 @@ with aba[0]:
                     }
                     adicionar_campo_secao(secao_atual, campo, finalizar_linha, finalizar_tabela)
                     st.rerun()
-
     with col2:
         preview_formulario(st.session_state.formulario, context_key="builder")
     st.markdown("---")
