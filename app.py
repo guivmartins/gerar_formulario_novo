@@ -2,7 +2,7 @@ import streamlit as st
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
-st.set_page_config(page_title="Construtor de Formulários 7.4", layout="wide")
+st.set_page_config(page_title="Construtor de Formulários 7.5", layout="wide")
 
 if "formulario" not in st.session_state:
     st.session_state.formulario = {
@@ -102,7 +102,8 @@ def gerar_xml(formulario: dict) -> str:
                             ET.SubElement(el, "conteudo", {"gxsi:type": "valor"})
 
         for campo in sec.get("campos", []):
-            if campo.get("in_tabela", False): continue
+            if campo.get("in_tabela", False):
+                continue
             tipo = campo.get("tipo", "texto")
             titulo = campo.get("titulo", "")
             obrig = str(bool(campo.get("obrigatorio", False))).lower()
@@ -220,56 +221,47 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                 conteudo = str(conteudo).replace("\\n", "\n")
                 st.markdown(conteudo)
 
-def adicionar_campo_secao(secao, campo, finalizar_linha=False, finalizar_tabela=False):
+def adicionar_campo_secao(secao, campo, linha_num=None, finalizar_tabela=False):
     if campo.get("in_tabela"):
         if not secao.get("tabela_aberta", False):
             secao["tabelas"] = secao.get("tabelas", [])
-            secao["tabela_atual"] = []
             secao["tabela_aberta"] = True
-            secao["linha_aberta"] = True
-            # colunas por linha definidas ou default 2
-            if "colunas_por_linha_atual" not in secao:
-                secao["colunas_por_linha_atual"] = 2
+            secao["tabela_atual"] = []
+            secao["linha_atual_num"] = None  # linha aberta corrente por número
+        # Linha nova?
+        if linha_num is None:
+            st.warning("Informe número da linha para inserir na tabela.")
+            return
+        if secao["linha_atual_num"] != linha_num:
+            # trocar linha aberta
+            secao["linha_atual_num"] = linha_num
+            # criar nova linha na tabela_atual para esse número
             secao["tabela_atual"].append([])
-        colunas_por_linha = secao.get("colunas_por_linha_atual", 2)
-        if secao["linha_aberta"]:
-            linha_atual = secao["tabela_atual"][-1]
-            while len(linha_atual) < colunas_por_linha:
-                linha_atual.append([])
-            for idx in range(colunas_por_linha):
-                if len(linha_atual[idx]) < 1:
-                    linha_atual[idx].append(campo)
-                    break
-            else:
-                st.warning("Linha cheia, finalize para adicionar novo campo.")
-        else:
-            secao["linha_aberta"] = True
-            secao["tabela_atual"].append([[campo]])
-        if finalizar_linha:
-            secao["linha_aberta"] = False
+        # inserir na linha atual
+        linha_atual = secao["tabela_atual"][-1]
+        # cada célula aceita 1 campo, cria nova célula para cada campo inserido
+        linha_atual.append([campo])
         if finalizar_tabela:
             secao["tabelas"].append(secao["tabela_atual"])
             secao["tabela_atual"] = []
             secao["tabela_aberta"] = False
-            secao["linha_aberta"] = False
-            secao.pop("colunas_por_linha_atual", None)
+            secao["linha_atual_num"] = None
+            st.success("Tabela finalizada.")
     else:
         if secao.get("tabela_aberta", False):
-            if secao.get("linha_aberta", False):
-                secao["linha_aberta"] = False
+            # fecha tabela aberta
             secao["tabelas"].append(secao["tabela_atual"])
             secao["tabela_atual"] = []
             secao["tabela_aberta"] = False
-            secao.pop("colunas_por_linha_atual", None)
+            secao["linha_atual_num"] = None
         secao.setdefault("campos", []).append(campo)
 
-# Interface aba construtor
 aba = st.tabs(["Construtor", "Importar arquivo"])
 
 with aba[0]:
     col1, col2 = st.columns(2)
     with col1:
-        st.title("Construtor de Formulários 7.4")
+        st.title("Construtor de Formulários 7.5")
         st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", st.session_state.formulario["nome"])
         st.markdown("---")
         with st.expander("➕ Adicionar Seção", expanded=True):
@@ -312,21 +304,10 @@ with aba[0]:
                 titulo = st.text_input("Título do Campo", key=f"title_add_{indice_selecao}")
                 obrig = st.checkbox("Obrigatório", key=f"obrig_add_{indice_selecao}")
                 in_tabela = st.checkbox("Dentro da tabela?", key=f"tabela_add_{indice_selecao}")
-                finalizar_linha = st.checkbox("Finalizar Linha", key=f"linha_add_{indice_selecao}")
-                finalizar_tabela = st.checkbox("Finaliza Tabela", key=f"tab_add_{indice_selecao}")
+                linha_tabela = None
+                if in_tabela:
+                    linha_tabela = st.number_input("Número da linha na tabela", min_value=1, step=1, key=f"linha_add_{indice_selecao}")
                 largura = st.number_input("Largura (px)", min_value=100, value=450, step=10, key=f"larg_add_{indice_selecao}")
-                colunas_por_linha = 2
-                if in_tabela and not secao_atual.get("tabela_aberta", False):
-                    colunas_por_linha = st.number_input(
-                        "Nº de células por linha",
-                        min_value=1, max_value=10, value=2,
-                        key=f"colunas_linha_{indice_selecao}"
-                    )
-                elif secao_atual.get("tabela_aberta", False):
-                    colunas_por_linha = secao_atual.get("colunas_por_linha_atual", 2)
-
-                secao_atual["colunas_por_linha_atual"] = colunas_por_linha
-
                 altura = None
                 if tipo == "texto-area":
                     altura = st.number_input("Altura", min_value=50, value=100, step=10, key=f"alt_add_{indice_selecao}")
@@ -352,8 +333,19 @@ with aba[0]:
                         "dominios": dominios_temp,
                         "valor": ""
                     }
-                    adicionar_campo_secao(secao_atual, campo, finalizar_linha, finalizar_tabela)
+                    adicionar_campo_secao(secao_atual, campo, linha_tabela)
                     st.rerun()
+
+            if st.button("Fechar Tabela", key=f"fechar_tabela_{indice_selecao}"):
+                if secao_atual.get("tabela_aberta", False):
+                    if secao_atual.get("linha_atual_num") is not None:
+                        secao_atual["linha_atual_num"] = None
+                    secao_atual["tabelas"].append(secao_atual["tabela_atual"])
+                    secao_atual["tabela_atual"] = []
+                    secao_atual["tabela_aberta"] = False
+                    st.success("Tabela fechada.")
+                    st.rerun()
+
     with col2:
         preview_formulario(st.session_state.formulario, context_key="builder")
 
@@ -370,5 +362,3 @@ with aba[0]:
         help="O arquivo .gfe é 100% compatível com XML do sistema.",
         key="download_gfe_builder"
     )
-
-# Aba de importação permanece igual
