@@ -11,6 +11,7 @@ if "formulario" not in st.session_state:
         "secoes": [],
         "dominios": []
     }
+
 if "nova_secao" not in st.session_state:
     st.session_state.nova_secao = {"titulo": "", "largura": 500, "campos": []}
 
@@ -235,7 +236,6 @@ def adicionar_campo_secao(secao, campo, linha_num=None, finalizar_tabela=False):
             secao["linha_atual_num"] = linha_num
             secao["tabela_atual"].append([])
         linha_atual = secao["tabela_atual"][-1]
-        # cada célula recebe 1 campo, adiciona nova célula para cada campo na linha
         linha_atual.append([campo])
         if finalizar_tabela:
             secao["tabelas"].append(secao["tabela_atual"])
@@ -262,4 +262,89 @@ with aba[0]:
         st.markdown("---")
         with st.expander("➕ Adicionar Seção", expanded=True):
             st.session_state.nova_secao["titulo"] = st.text_input("Título da Seção", st.session_state.nova_secao["titulo"])
-            st.session_state.nova_secao["largura"] = st.number_input("Largura da Seção", min_value
+            st.session_state.nova_secao["largura"] = st.number_input("Largura da Seção", min_value=100, value=st.session_state.nova_secao["largura"], step=10)
+            if st.button("Salvar Seção"):
+                if st.session_state.nova_secao["titulo"]:
+                    st.session_state.formulario["secoes"].append(st.session_state.nova_secao.copy())
+                    st.session_state.nova_secao = {"titulo": "", "largura": 500, "campos": []}
+                    st.experimental_rerun()
+        st.markdown("---")
+        for s_idx, sec in enumerate(st.session_state.formulario.get("secoes", [])):
+            with st.expander(f"📁 Seção: {sec.get('titulo','(sem título)')}", expanded=False):
+                st.write(f"**Largura:** {sec.get('largura', 500)}")
+                if st.button(f"🗑️ Excluir Seção", key=f"del_sec_{s_idx}"):
+                    st.session_state.formulario["secoes"].pop(s_idx)
+                    st.experimental_rerun()
+                st.markdown("### Campos e Tabelas")
+                for c_idx, campo in enumerate(sec.get("campos", [])):
+                    st.text(f"{campo.get('tipo')} - {campo.get('titulo')}")
+                    if st.button("Excluir Campo", key=f"del_field_{s_idx}_{c_idx}"):
+                        sec["campos"].pop(c_idx)
+                        st.experimental_rerun()
+                if "tabelas" in sec:
+                    for t_idx, tabela in enumerate(sec["tabelas"]):
+                        st.markdown(f"**Tabela {t_idx+1}:**")
+                        for l_idx, linha in enumerate(tabela):
+                            cel_texts = []
+                            for c_idx, celula in enumerate(linha):
+                                titulos = ", ".join([c.get("titulo", "") for c in celula])
+                                cel_texts.append(f"Celula {c_idx+1}: {titulos}")
+                            st.text(f"Linha {l_idx+1}: " + " | ".join(cel_texts))
+        if st.session_state.formulario.get("secoes"):
+            secao_opcoes = [sec.get("titulo", f"Seção {i}") for i, sec in enumerate(st.session_state.formulario["secoes"])]
+            indice_selecao = st.selectbox("Selecione a Seção para adicionar um campo", options=range(len(secao_opcoes)), format_func=lambda i: secao_opcoes[i])
+            secao_atual = st.session_state.formulario["secoes"][indice_selecao]
+
+            with st.expander(f"➕ Adicionar Campos à seção: {secao_atual.get('titulo', '')}", expanded=True):
+                tipo = st.selectbox("Tipo do Campo", TIPOS_ELEMENTOS, key=f"type_add_{indice_selecao}")
+                titulo = st.text_input("Título do Campo", key=f"title_add_{indice_selecao}")
+                obrig = st.checkbox("Obrigatório", key=f"obrig_add_{indice_selecao}")
+                in_tabela = st.checkbox("Dentro da tabela?", key=f"tabela_add_{indice_selecao}")
+                linha_tabela = None
+                if in_tabela:
+                    linha_tabela = st.number_input("Número da linha na tabela", min_value=1, step=1, key=f"linha_add_{indice_selecao}")
+                largura = st.number_input("Largura (px)", min_value=100, value=450, step=10, key=f"larg_add_{indice_selecao}")
+                altura = None
+                if tipo == "texto-area":
+                    altura = st.number_input("Altura", min_value=50, value=100, step=10, key=f"alt_add_{indice_selecao}")
+                colunas = 1
+                dominios_temp = []
+                if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"]:
+                    colunas = st.number_input("Colunas", min_value=1, max_value=5, value=1, key=f"colunas_add_{indice_selecao}")
+                    qtd_dom = st.number_input("Qtd. de Itens no Domínio", min_value=1, max_value=50, value=2, key=f"qtd_dom_add_{indice_selecao}")
+                    for i in range(int(qtd_dom)):
+                        val = st.text_input(f"Descrição Item {i+1}", key=f"desc_add_{indice_selecao}_{i}")
+                        if val:
+                            dominios_temp.append({"descricao": val, "valor": val.upper()})
+                finalizar_tabela = st.button("Fechar Tabela", key=f"fechar_tabela_{indice_selecao}")
+                if st.button("Adicionar Campo", key=f"add_field_{indice_selecao}"):
+                    campo = {
+                        "titulo": titulo,
+                        "descricao": titulo,
+                        "tipo": tipo,
+                        "obrigatorio": obrig,
+                        "largura": largura,
+                        "altura": altura,
+                        "colunas": colunas,
+                        "in_tabela": in_tabela,
+                        "dominios": dominios_temp,
+                        "valor": ""
+                    }
+                    adicionar_campo_secao(secao_atual, campo, linha_tabela, finalizar_tabela)
+                    st.experimental_rerun()
+
+    with col2:
+        preview_formulario(st.session_state.formulario, context_key="builder")
+    st.markdown("---")
+    st.subheader("📑 Pré-visualização XML")
+    xml_preview = gerar_xml(st.session_state.formulario)
+    st.code(xml_preview, language="xml")
+    nome_arquivo = st.session_state.formulario.get("nome", "formulario") + ".gfe"
+    st.download_button(
+        label="Baixar Arquivo",
+        data=xml_preview.encode("utf-8"),
+        file_name=nome_arquivo,
+        mime="application/xml",
+        help="O arquivo .gfe é 100% compatível com XML do sistema.",
+        key="download_gfe_builder"
+    )
