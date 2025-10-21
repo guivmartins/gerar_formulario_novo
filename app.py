@@ -1,8 +1,10 @@
 import streamlit as st
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
+import xmltodict
+import io
 
-st.set_page_config(page_title="Construtor de Formulários com Linha 7.10", layout="wide")
+st.set_page_config(page_title="Construtor de Formulários 7.11", layout="wide")
 
 if "formulario" not in st.session_state:
     st.session_state.formulario = {
@@ -255,14 +257,23 @@ def adicionar_campo_secao(secao, campo, linha_num=None):
             secao["elementos"] = []
         secao["elementos"].append({"tipo_elemento": "campo", "campo": campo})
 
+def reorder_elementos(elementos, idx, direcao):
+    # direcao: -1 para cima, +1 para baixo
+    novo_idx = idx + direcao
+    if novo_idx < 0 or novo_idx >= len(elementos):
+        return elementos
+    elementos[idx], elementos[novo_idx] = elementos[novo_idx], elementos[idx]
+    return elementos
+
 aba = st.tabs(["Construtor", "Importar arquivo"])
 
 with aba[0]:
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns([3,2])
     with col1:
-        st.title("Construtor de Formulários 7.10")
+        st.title("Construtor de Formulários 7.11")
         st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", st.session_state.formulario["nome"])
         st.markdown("---")
+
         with st.expander("➕ Adicionar Seção", expanded=True):
             st.session_state.nova_secao["titulo"] = st.text_input("Título da Seção", st.session_state.nova_secao["titulo"])
             st.session_state.nova_secao["largura"] = st.number_input("Largura da Seção", min_value=100, value=st.session_state.nova_secao["largura"], step=10)
@@ -271,29 +282,44 @@ with aba[0]:
                     st.session_state.formulario["secoes"].append(st.session_state.nova_secao.copy())
                     st.session_state.nova_secao = {"titulo": "", "largura": 500, "elementos": []}
                     st.rerun()
+
         st.markdown("---")
+
         for s_idx, sec in enumerate(st.session_state.formulario.get("secoes", [])):
             with st.expander(f"📁 Seção: {sec.get('titulo','(sem título)')}", expanded=False):
                 st.write(f"**Largura:** {sec.get('largura', 500)}")
                 if st.button(f"🗑️ Excluir Seção", key=f"del_sec_{s_idx}"):
                     st.session_state.formulario["secoes"].pop(s_idx)
                     st.rerun()
+
                 st.markdown("### Elementos na Seção (ordem mantida)")
                 elementos = sec.get("elementos", [])
                 for i, item in enumerate(elementos):
-                    if item["tipo_elemento"] == "campo":
-                        st.text(f"Campo: {item['campo'].get('titulo', '')}")
-                        if st.button("Excluir Campo", key=f"del_field_{s_idx}_{i}"):
+                    # Ordenação
+                    col_ord1, col_ord2, col_main, col_exc = st.columns([1,1,10,1])
+                    with col_ord1:
+                        if st.button("⬆️", key=f"up_{s_idx}_{i}"):
+                            sec["elementos"] = reorder_elementos(elementos, i, -1)
+                            st.rerun()
+                    with col_ord2:
+                        if st.button("⬇️", key=f"down_{s_idx}_{i}"):
+                            sec["elementos"] = reorder_elementos(elementos, i, 1)
+                            st.rerun()
+                    with col_main:
+                        if item["tipo_elemento"] == "campo":
+                            st.text(f"Campo: {item['campo'].get('titulo', '')}")
+                        elif item["tipo_elemento"] == "tabela":
+                            st.markdown(f"**Tabela:**")
+                            for l_idx, linha in enumerate(item["tabela"]):
+                                cel_texts = []
+                                for c_idx, celula in enumerate(linha):
+                                    titulos = ", ".join([c.get("titulo", "") for c in celula])
+                                    cel_texts.append(f"Celula {c_idx+1}: {titulos}")
+                                st.text(f"Linha {l_idx+1}: " + " | ".join(cel_texts))
+                    with col_exc:
+                        if st.button("❌", key=f"del_{s_idx}_{i}"):
                             elementos.pop(i)
                             st.rerun()
-                    elif item["tipo_elemento"] == "tabela":
-                        st.markdown(f"**Tabela:**")
-                        for l_idx, linha in enumerate(item["tabela"]):
-                            cel_texts = []
-                            for c_idx, celula in enumerate(linha):
-                                titulos = ", ".join([c.get("titulo", "") for c in celula])
-                                cel_texts.append(f"Celula {c_idx+1}: {titulos}")
-                            st.text(f"Linha {l_idx+1}: " + " | ".join(cel_texts))
 
         if st.session_state.formulario.get("secoes"):
             secao_opcoes = [sec.get("titulo", f"Seção {i}") for i, sec in enumerate(st.session_state.formulario["secoes"])]
@@ -337,19 +363,92 @@ with aba[0]:
                     adicionar_campo_secao(secao_atual, campo, linha_tabela)
                     st.rerun()
 
-    with col2:
-        preview_formulario(st.session_state.formulario, context_key="builder")
+with aba[1]:
+    st.title("Importar Arquivo de Formulário")
+    uploaded_file = st.file_uploader("Escolha o arquivo XML para importar", type=["xml", "gfe"])
+    if uploaded_file is not None:
+        try:
+            content = uploaded_file.read()
+            dict_parsed = xmltodict.parse(content)
+            # Espera-se que dict_parsed tenha estrutura similar ao xml gerado
+            # Simplesmente tentaremos converter os dados para nossa estrutura interna
+            formulario_dict = {}  # criar estrutura limpa
+            if "gxsi:formulario" in dict_parsed:
+                form_data = dict_parsed["gxsi:formulario"]
+                formulario_dict["nome"] = form_data.get("@nome", "")
+                formulario_dict["versao"] = form_data.get("@versao", "1.0")
+                formulario_dict["secoes"] = []
 
-    st.markdown("---")
-    st.subheader("📑 Pré-visualização XML")
-    xml_preview = gerar_xml(st.session_state.formulario)
-    st.code(xml_preview, language="xml")
-    nome_arquivo = st.session_state.formulario.get("nome", "formulario") + ".gfe"
-    st.download_button(
-        label="Baixar Arquivo",
-        data=xml_preview.encode("utf-8"),
-        file_name=nome_arquivo,
-        mime="application/xml",
-        help="O arquivo .gfe é 100% compatível com XML do sistema.",
-        key="download_gfe_builder"
-    )
+                elementos = form_data.get("elementos", {}).get("elemento", [])
+                if not isinstance(elementos, list):
+                    elementos = [elementos]
+
+                for elem in elementos:
+                    if elem.get("@gxsi:type") == "seccao":
+                        sec = {
+                            "titulo": elem.get("@titulo", ""),
+                            "largura": int(elem.get("@largura", "500")),
+                            "elementos": []
+                        }
+                        sec_elementos = elem.get("elementos", {}).get("elemento", [])
+                        if not isinstance(sec_elementos, list):
+                            sec_elementos = [sec_elementos]
+                        for se in sec_elementos:
+                            tipo = se.get("@gxsi:type")
+                            if tipo == "tabela":
+                                # Converter tabela para lista para nossos formatos
+                                linhas = se.get("linhas", {}).get("linha", [])
+                                if not isinstance(linhas, list):
+                                    linhas = [linhas]
+                                tabela = []
+                                for linha in linhas:
+                                    celulas = linha.get("celulas", {}).get("celula", [])
+                                    if not isinstance(celulas, list):
+                                        celulas = [celulas]
+                                    linha_lista = []
+                                    for cel in celulas:
+                                        elementos_cel = cel.get("elementos", {}).get("elemento", [])
+                                        if not isinstance(elementos_cel, list):
+                                            elementos_cel = [elementos_cel]
+                                        campos = []
+                                        for c in elementos_cel:
+                                            c_info = {
+                                                "tipo": c.get("@gxsi:type", "texto"),
+                                                "titulo": c.get("@titulo", ""),
+                                                "descricao": c.get("@descricao", ""),
+                                                "obrigatorio": c.get("@obrigatorio", "false") == "true",
+                                                "largura": int(c.get("@largura", "450")),
+                                                "altura": int(c.get("@altura", "0")) if c.get("@altura") else None,
+                                                "colunas": int(c.get("@colunas", "1"))
+                                            }
+                                            campos.append(c_info)
+                                        linha_lista.append(campos)
+                                    tabela.append(linha_lista)
+                                sec["elementos"].append({"tipo_elemento": "tabela", "tabela": tabela})
+                            else:
+                                c_info = {
+                                    "tipo": tipo,
+                                    "titulo": se.get("@titulo", ""),
+                                    "descricao": se.get("@descricao", ""),
+                                    "obrigatorio": se.get("@obrigatorio", "false") == "true",
+                                    "largura": int(se.get("@largura", "450")),
+                                    "altura": int(se.get("@altura", "0")) if se.get("@altura") else None,
+                                    "colunas": int(se.get("@colunas", "1")),
+                                    "in_tabela": False,
+                                    "dominios": []
+                                }
+                                sec["elementos"].append({"tipo_elemento": "campo", "campo": c_info})
+                        formulario_dict["secoes"].append(sec)
+                st.session_state.formulario = formulario_dict
+                st.success("Arquivo importado com sucesso!")
+            else:
+                st.error("Arquivo não contém estrutura válida de formulário.")
+        except Exception as e:
+            st.error(f"Erro ao importar arquivo: {str(e)}")
+
+def reorder_elementos(elementos, idx, direcao):
+    novo_idx = idx + direcao
+    if novo_idx < 0 or novo_idx >= len(elementos):
+        return elementos
+    elementos[idx], elementos[novo_idx] = elementos[novo_idx], elementos[idx]
+    return elementos
