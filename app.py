@@ -2,7 +2,7 @@ import streamlit as st
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
-st.set_page_config(page_title="Construtor de Formulários 7.9", layout="wide")
+st.set_page_config(page_title="Construtor de Formulários com Linha 7.10", layout="wide")
 
 if "formulario" not in st.session_state:
     st.session_state.formulario = {
@@ -232,19 +232,17 @@ def adicionar_campo_secao(secao, campo, linha_num=None):
             secao["linha_atual_num"] = None
             if "elementos" not in secao:
                 secao["elementos"] = []
-        linha_num = 1  # linha fixa sempre 1
+        if linha_num is None:
+            st.warning("Informe número da linha para inserir na tabela.")
+            return
         if secao["linha_atual_num"] != linha_num:
             secao["linha_atual_num"] = linha_num
             secao["tabela_atual"].append([])
         linha_atual = secao["tabela_atual"][-1]
         linha_atual.append([campo])
-        # fechar tabela automaticamente ao inserir campo
+        # Atualizar lista geral preservando ordem
         if not any(el.get("tipo_elemento") == "tabela" and el.get("tabela") == secao["tabela_atual"] for el in secao.get("elementos", [])):
             secao["elementos"].append({"tipo_elemento": "tabela", "tabela": secao["tabela_atual"]})
-        secao["tabela_atual"] = []
-        secao["tabela_aberta"] = False
-        secao["linha_atual_num"] = None
-        st.success("Tabela automaticamente finalizada após inserção do campo.")
     else:
         if secao.get("tabela_aberta", False):
             if secao.get("linha_atual_num") is not None:
@@ -262,7 +260,7 @@ aba = st.tabs(["Construtor", "Importar arquivo"])
 with aba[0]:
     col1, col2 = st.columns(2)
     with col1:
-        st.title("Construtor de Formulários 7.9")
+        st.title("Construtor de Formulários 7.10")
         st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", st.session_state.formulario["nome"])
         st.markdown("---")
         with st.expander("➕ Adicionar Seção", expanded=True):
@@ -307,6 +305,9 @@ with aba[0]:
                 titulo = st.text_input("Título do Campo", key=f"title_add_{indice_selecao}")
                 obrig = st.checkbox("Obrigatório", key=f"obrig_add_{indice_selecao}")
                 in_tabela = st.checkbox("Dentro da tabela?", key=f"tabela_add_{indice_selecao}")
+                linha_tabela = None
+                if in_tabela:
+                    linha_tabela = st.number_input("Número da linha na tabela", min_value=1, step=1, key=f"linha_add_{indice_selecao}")
                 largura = st.number_input("Largura (px)", min_value=100, value=450, step=10, key=f"larg_add_{indice_selecao}")
                 altura = None
                 if tipo == "texto-area":
@@ -333,7 +334,7 @@ with aba[0]:
                         "dominios": dominios_temp,
                         "valor": ""
                     }
-                    adicionar_campo_secao(secao_atual, campo)
+                    adicionar_campo_secao(secao_atual, campo, linha_tabela)
                     st.rerun()
 
     with col2:
