@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import xmltodict
 
-st.set_page_config(page_title="Construtor de Formulários Completo 7.12", layout="wide")
+st.set_page_config(page_title="Construtor de Formulários Corrigido 7.13", layout="wide")
 
 if "formulario" not in st.session_state:
     st.session_state.formulario = {
@@ -90,8 +90,7 @@ def gerar_xml(formulario: dict) -> str:
                 }
                 if tipo == "texto-area" and campo.get("altura"):
                     attrs["altura"] = str(campo.get("altura"))
-                el = ET.SubElement(elementos_tag, "elemento", attrs)
-                ET.SubElement(el, "conteudo", {"gxsi:type": "valor"})
+                ET.SubElement(subelems, "elemento", attrs)
 
             elif item["tipo_elemento"] == "tabela":
                 tabela = item["tabela"]
@@ -148,11 +147,7 @@ def gerar_xml(formulario: dict) -> str:
                             }
                             if tipo == "texto-area" and campo.get("altura"):
                                 attrs["altura"] = str(campo.get("altura"))
-                            el = ET.SubElement(elementos_tag, "elemento", attrs)
-                            ET.SubElement(el, "conteudo", {"gxsi:type": "valor"})
-
-    root.append(dominios_global)
-    return _prettify_xml(root)
+                            ET.SubElement(elementos_tag, "elemento", attrs)
 
 def preview_formulario(formulario: dict, context_key: str = "main"):
     st.header("📋 Pré-visualização do Formulário")
@@ -265,7 +260,7 @@ aba = st.tabs(["Construtor", "Importar arquivo"])
 with aba[0]:
     col1, col2 = st.columns([3, 2])
     with col1:
-        st.title("Construtor de Formulários Completo 7.12")
+        st.title("Construtor de Formulários Corrigido 7.13")
         st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", st.session_state.formulario["nome"])
         st.markdown("---")
 
@@ -357,14 +352,6 @@ with aba[0]:
                     adicionar_campo_secao(secao_atual, campo, linha_tabela)
                     st.rerun()
 
-    with col2:
-        preview_formulario(st.session_state.formulario, context_key="builder")
-
-        st.markdown("---")
-        st.subheader("📑 Pré-visualização XML")
-        xml_preview = gerar_xml(st.session_state.formulario)
-        st.code(xml_preview, language="xml")
-
 with aba[1]:
     st.title("Importar Arquivo de Formulário")
     uploaded_file = st.file_uploader("Escolha o arquivo XML para importar", type=["xml", "gfe"])
@@ -445,8 +432,8 @@ with aba[1]:
         except Exception as e:
             st.error(f"Erro ao importar arquivo: {str(e)}")
 
+# Funções auxiliares
 
-# Funções de ordenação e inserção
 def reorder_elementos(elementos, idx, direcao):
     novo_idx = idx + direcao
     if novo_idx < 0 or novo_idx >= len(elementos):
