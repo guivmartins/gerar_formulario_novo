@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import xmltodict
 
-st.set_page_config(page_title="Construtor de Formulários Corrigido 7.13", layout="wide")
+st.set_page_config(page_title="Construtor de Formulários Completo 7.14", layout="wide")
 
 if "formulario" not in st.session_state:
     st.session_state.formulario = {
@@ -149,6 +149,9 @@ def gerar_xml(formulario: dict) -> str:
                                 attrs["altura"] = str(campo.get("altura"))
                             ET.SubElement(elementos_tag, "elemento", attrs)
 
+    root.append(dominios_global)
+    return _prettify_xml(root)
+
 def preview_formulario(formulario: dict, context_key: str = "main"):
     st.header("📋 Pré-visualização do Formulário")
     st.subheader(formulario.get("nome", ""))
@@ -260,7 +263,7 @@ aba = st.tabs(["Construtor", "Importar arquivo"])
 with aba[0]:
     col1, col2 = st.columns([3, 2])
     with col1:
-        st.title("Construtor de Formulários Corrigido 7.13")
+        st.title("Construtor de Formulários Completo 7.14")
         st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", st.session_state.formulario["nome"])
         st.markdown("---")
 
@@ -433,7 +436,6 @@ with aba[1]:
             st.error(f"Erro ao importar arquivo: {str(e)}")
 
 # Funções auxiliares
-
 def reorder_elementos(elementos, idx, direcao):
     novo_idx = idx + direcao
     if novo_idx < 0 or novo_idx >= len(elementos):
