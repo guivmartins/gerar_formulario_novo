@@ -159,6 +159,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
     st.subheader(formulario.get("nome", ""))
     for s_idx, sec in enumerate(formulario.get("secoes", [])):
         st.markdown(f"### {sec.get('titulo')}")
+        # tabelas já finalizadas
         tabelas = sec.get("tabelas", [])
         for tabela_idx, tabela in enumerate(tabelas):
             st.markdown(f"**Tabela {tabela_idx+1}**")
@@ -193,6 +194,42 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                                     conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
                                     conteudo = str(conteudo).replace("\\n", "\n")
                                     st.markdown(conteudo)
+        # tabela em construção (aberta)
+        if sec.get("tabela_aberta", False) and sec.get("tabela_atual", []):
+            st.markdown(f"**Tabela (em construção)**")
+            tabela = sec["tabela_atual"]
+            for linha_idx, linha in enumerate(tabela):
+                cols = st.columns(len(linha)) if linha else []
+                for c_idx, celula in enumerate(linha):
+                    if cols:
+                        with cols[c_idx]:
+                            for c_idx2, campo in enumerate(celula):
+                                tipo = campo.get("tipo")
+                                key_prev = f"prev_CONSTR_{context_key}_{s_idx}_l{linha_idx}_c{c_idx}_f{c_idx2}_{sec.get('titulo')}_{campo.get('titulo')}"
+                                if tipo == "texto":
+                                    st.text_input(campo.get("titulo", ""), key=key_prev)
+                                elif tipo == "texto-area":
+                                    st.text_area(campo.get("titulo", ""), height=campo.get("altura", 100), key=key_prev)
+                                elif tipo == "data":
+                                    st.date_input(campo.get("titulo", ""), key=key_prev)
+                                elif tipo == "grupoCheck":
+                                    st.markdown(f"**{campo.get('titulo', '')}**")
+                                    for idx, dom in enumerate(campo.get("dominios", [])):
+                                        st.checkbox(dom["descricao"], key=f"{key_prev}_{idx}")
+                                elif tipo in ["comboBox", "comboFiltro"]:
+                                    st.multiselect(campo.get("titulo", ""), [d["descricao"] for d in campo.get("dominios", [])], key=key_prev)
+                                elif tipo == "grupoRadio":
+                                    st.radio(campo.get("titulo", ""), [d["descricao"] for d in campo.get("dominios", [])], key=key_prev)
+                                elif tipo == "check":
+                                    st.checkbox(campo.get("titulo", ""), key=key_prev)
+                                elif tipo == "rotulo":
+                                    conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
+                                    st.markdown(f"**{conteudo}**")
+                                elif tipo == "paragrafo":
+                                    conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
+                                    conteudo = str(conteudo).replace("\\n", "\n")
+                                    st.markdown(conteudo)
+        # campos fora de tabela
         for c_idx, campo in enumerate(sec.get("campos", [])):
             if campo.get("in_tabela"):
                 continue
