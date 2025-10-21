@@ -3,9 +3,8 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import xmltodict
 
-st.set_page_config(page_title="Construtor de Formulários Completo", layout="wide")
+st.set_page_config(page_title="Construtor de Formulários Completo 7.12", layout="wide")
 
-# Inicializações
 if "formulario" not in st.session_state:
     st.session_state.formulario = {
         "nome": "",
@@ -22,7 +21,6 @@ TIPOS_ELEMENTOS = [
     "grupoCheck", "paragrafo", "rotulo"
 ]
 
-# Auxiliares XML
 def _prettify_xml(root: ET.Element) -> str:
     xml_bytes = ET.tostring(root, encoding="utf-8", xml_declaration=True)
     parsed = minidom.parseString(xml_bytes)
@@ -45,9 +43,7 @@ def gerar_xml(formulario: dict) -> str:
         })
         subelems = ET.SubElement(sec_el, "elementos")
 
-        elementos_lista = sec.get("elementos", [])
-
-        for item in elementos_lista:
+        for item in sec.get("elementos", []):
             if item["tipo_elemento"] == "campo":
                 campo = item["campo"]
                 tipo = campo.get("tipo", "texto")
@@ -94,7 +90,7 @@ def gerar_xml(formulario: dict) -> str:
                 }
                 if tipo == "texto-area" and campo.get("altura"):
                     attrs["altura"] = str(campo.get("altura"))
-                el = ET.SubElement(subelems, "elemento", attrs)
+                el = ET.SubElement(elementos_tag, "elemento", attrs)
                 ET.SubElement(el, "conteudo", {"gxsi:type": "valor"})
 
             elif item["tipo_elemento"] == "tabela":
@@ -242,7 +238,6 @@ def adicionar_campo_secao(secao, campo, linha_num=None):
             secao["tabela_atual"].append([])
         linha_atual = secao["tabela_atual"][-1]
         linha_atual.append([campo])
-        # Atualizar lista geral preservando ordem
         if not any(el.get("tipo_elemento") == "tabela" and el.get("tabela") == secao["tabela_atual"] for el in secao.get("elementos", [])):
             secao["elementos"].append({"tipo_elemento": "tabela", "tabela": secao["tabela_atual"]})
     else:
@@ -270,7 +265,7 @@ aba = st.tabs(["Construtor", "Importar arquivo"])
 with aba[0]:
     col1, col2 = st.columns([3, 2])
     with col1:
-        st.title("Construtor de Formulários Completo 7.11")
+        st.title("Construtor de Formulários Completo 7.12")
         st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", st.session_state.formulario["nome"])
         st.markdown("---")
 
@@ -310,11 +305,11 @@ with aba[0]:
                         elif item["tipo_elemento"] == "tabela":
                             st.markdown(f"**Tabela:**")
                             for l_idx, linha in enumerate(item["tabela"]):
-                                cel_texts = []
+                                cel_textos = []
                                 for c_idx, celula in enumerate(linha):
                                     titulos = ", ".join([c.get("titulo", "") for c in celula])
-                                    cel_texts.append(f"Celula {c_idx+1}: {titulos}")
-                                st.text(f"Linha {l_idx+1}: " + " | ".join(cel_texts))
+                                    cel_textos.append(f"Celula {c_idx+1}: {titulos}")
+                                st.text(f"Linha {l_idx+1}: " + " | ".join(cel_textos))
                     with col_exc:
                         if st.button("❌", key=f"del_{s_idx}_{i}"):
                             elementos.pop(i)
@@ -361,6 +356,14 @@ with aba[0]:
                     }
                     adicionar_campo_secao(secao_atual, campo, linha_tabela)
                     st.rerun()
+
+    with col2:
+        preview_formulario(st.session_state.formulario, context_key="builder")
+
+        st.markdown("---")
+        st.subheader("📑 Pré-visualização XML")
+        xml_preview = gerar_xml(st.session_state.formulario)
+        st.code(xml_preview, language="xml")
 
 with aba[1]:
     st.title("Importar Arquivo de Formulário")
@@ -441,3 +444,12 @@ with aba[1]:
                 st.error("Arquivo não contém estrutura válida de formulário.")
         except Exception as e:
             st.error(f"Erro ao importar arquivo: {str(e)}")
+
+
+# Funções de ordenação e inserção
+def reorder_elementos(elementos, idx, direcao):
+    novo_idx = idx + direcao
+    if novo_idx < 0 or novo_idx >= len(elementos):
+        return elementos
+    elementos[idx], elementos[novo_idx] = elementos[novo_idx], elementos[idx]
+    return elementos
