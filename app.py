@@ -2,10 +2,10 @@ import streamlit as st
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import xmltodict
-import io
 
-st.set_page_config(page_title="Construtor de Formulários 7.11", layout="wide")
+st.set_page_config(page_title="Construtor de Formulários Completo", layout="wide")
 
+# Inicializações
 if "formulario" not in st.session_state:
     st.session_state.formulario = {
         "nome": "",
@@ -22,6 +22,7 @@ TIPOS_ELEMENTOS = [
     "grupoCheck", "paragrafo", "rotulo"
 ]
 
+# Auxiliares XML
 def _prettify_xml(root: ET.Element) -> str:
     xml_bytes = ET.tostring(root, encoding="utf-8", xml_declaration=True)
     parsed = minidom.parseString(xml_bytes)
@@ -219,8 +220,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                                 elif tipo == "check":
                                     st.checkbox(campo.get("titulo", ""), key=key_prev)
                                 elif tipo == "rotulo":
-                                    conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
-                                    st.markdown(f"**{conteudo}**")
+                                    st.markdown(f"**{campo.get('valor') or campo.get('descricao') or campo.get('titulo') or ''}**")
                                 elif tipo == "paragrafo":
                                     conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
                                     conteudo = str(conteudo).replace("\\n", "\n")
@@ -258,19 +258,19 @@ def adicionar_campo_secao(secao, campo, linha_num=None):
         secao["elementos"].append({"tipo_elemento": "campo", "campo": campo})
 
 def reorder_elementos(elementos, idx, direcao):
-    # direcao: -1 para cima, +1 para baixo
     novo_idx = idx + direcao
     if novo_idx < 0 or novo_idx >= len(elementos):
         return elementos
     elementos[idx], elementos[novo_idx] = elementos[novo_idx], elementos[idx]
     return elementos
 
+# Interface
 aba = st.tabs(["Construtor", "Importar arquivo"])
 
 with aba[0]:
-    col1, col2 = st.columns([3,2])
+    col1, col2 = st.columns([3, 2])
     with col1:
-        st.title("Construtor de Formulários 7.11")
+        st.title("Construtor de Formulários Completo 7.11")
         st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", st.session_state.formulario["nome"])
         st.markdown("---")
 
@@ -295,8 +295,7 @@ with aba[0]:
                 st.markdown("### Elementos na Seção (ordem mantida)")
                 elementos = sec.get("elementos", [])
                 for i, item in enumerate(elementos):
-                    # Ordenação
-                    col_ord1, col_ord2, col_main, col_exc = st.columns([1,1,10,1])
+                    col_ord1, col_ord2, col_main, col_exc = st.columns([1, 1, 10, 1])
                     with col_ord1:
                         if st.button("⬆️", key=f"up_{s_idx}_{i}"):
                             sec["elementos"] = reorder_elementos(elementos, i, -1)
@@ -370,9 +369,7 @@ with aba[1]:
         try:
             content = uploaded_file.read()
             dict_parsed = xmltodict.parse(content)
-            # Espera-se que dict_parsed tenha estrutura similar ao xml gerado
-            # Simplesmente tentaremos converter os dados para nossa estrutura interna
-            formulario_dict = {}  # criar estrutura limpa
+            formulario_dict = {}
             if "gxsi:formulario" in dict_parsed:
                 form_data = dict_parsed["gxsi:formulario"]
                 formulario_dict["nome"] = form_data.get("@nome", "")
@@ -396,7 +393,6 @@ with aba[1]:
                         for se in sec_elementos:
                             tipo = se.get("@gxsi:type")
                             if tipo == "tabela":
-                                # Converter tabela para lista para nossos formatos
                                 linhas = se.get("linhas", {}).get("linha", [])
                                 if not isinstance(linhas, list):
                                     linhas = [linhas]
@@ -445,10 +441,3 @@ with aba[1]:
                 st.error("Arquivo não contém estrutura válida de formulário.")
         except Exception as e:
             st.error(f"Erro ao importar arquivo: {str(e)}")
-
-def reorder_elementos(elementos, idx, direcao):
-    novo_idx = idx + direcao
-    if novo_idx < 0 or novo_idx >= len(elementos):
-        return elementos
-    elementos[idx], elementos[novo_idx] = elementos[novo_idx], elementos[idx]
-    return elementos
