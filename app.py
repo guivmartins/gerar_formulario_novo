@@ -2,7 +2,7 @@ import streamlit as st
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
-st.set_page_config(page_title="Construtor de Formulários 7.8", layout="wide")
+st.set_page_config(page_title="Construtor de Formulários 7.9", layout="wide")
 
 if "formulario" not in st.session_state:
     st.session_state.formulario = {
@@ -224,7 +224,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                                     conteudo = str(conteudo).replace("\\n", "\n")
                                     st.markdown(conteudo)
 
-def adicionar_campo_secao(secao, campo, linha_num=None, finalizar_tabela=False):
+def adicionar_campo_secao(secao, campo, linha_num=None):
     if campo.get("in_tabela"):
         if not secao.get("tabela_aberta", False):
             secao["tabela_aberta"] = True
@@ -232,46 +232,37 @@ def adicionar_campo_secao(secao, campo, linha_num=None, finalizar_tabela=False):
             secao["linha_atual_num"] = None
             if "elementos" not in secao:
                 secao["elementos"] = []
-        if linha_num is None:
-            st.warning("Informe número da linha para inserir na tabela.")
-            return
+        linha_num = 1  # linha fixa sempre 1
         if secao["linha_atual_num"] != linha_num:
             secao["linha_atual_num"] = linha_num
             secao["tabela_atual"].append([])
         linha_atual = secao["tabela_atual"][-1]
         linha_atual.append([campo])
-        # Atualizar lista geral preservando ordem
-        # Se tabela_atual ainda não está no elementos, adiciona
-        tabela_encontrada = False
-        for idx, el in enumerate(sec["elementos"]):
-            if el["tipo_elemento"] == "tabela" and el.get("tabela") == secao["tabela_atual"]:
-                tabela_encontrada = True
-                break
-        if not tabela_encontrada:
-            sec["elementos"].append({"tipo_elemento":"tabela","tabela":secao["tabela_atual"]})
-
-        if finalizar_tabela:
-            secao["elementos"].append({"tipo_elemento":"tabela","tabela":secao["tabela_atual"]})
-            secao["tabela_atual"] = []
-            secao["tabela_aberta"] = False
-            secao["linha_atual_num"] = None
-            st.success("Tabela finalizada.")
+        # fechar tabela automaticamente ao inserir campo
+        if not any(el.get("tipo_elemento") == "tabela" and el.get("tabela") == secao["tabela_atual"] for el in secao.get("elementos", [])):
+            secao["elementos"].append({"tipo_elemento": "tabela", "tabela": secao["tabela_atual"]})
+        secao["tabela_atual"] = []
+        secao["tabela_aberta"] = False
+        secao["linha_atual_num"] = None
+        st.success("Tabela automaticamente finalizada após inserção do campo.")
     else:
         if secao.get("tabela_aberta", False):
-            secao["elementos"].append({"tipo_elemento":"tabela","tabela":secao["tabela_atual"]})
+            if secao.get("linha_atual_num") is not None:
+                secao["linha_atual_num"] = None
+            if not any(el.get("tipo_elemento") == "tabela" and el.get("tabela") == secao["tabela_atual"] for el in secao.get("elementos", [])):
+                secao["elementos"].append({"tipo_elemento": "tabela", "tabela": secao["tabela_atual"]})
             secao["tabela_atual"] = []
             secao["tabela_aberta"] = False
-            secao["linha_atual_num"] = None
         if "elementos" not in secao:
             secao["elementos"] = []
-        secao["elementos"].append({"tipo_elemento":"campo","campo":campo})
+        secao["elementos"].append({"tipo_elemento": "campo", "campo": campo})
 
 aba = st.tabs(["Construtor", "Importar arquivo"])
 
 with aba[0]:
     col1, col2 = st.columns(2)
     with col1:
-        st.title("Construtor de Formulários 7.8")
+        st.title("Construtor de Formulários 7.9")
         st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", st.session_state.formulario["nome"])
         st.markdown("---")
         with st.expander("➕ Adicionar Seção", expanded=True):
@@ -305,6 +296,7 @@ with aba[0]:
                                 titulos = ", ".join([c.get("titulo", "") for c in celula])
                                 cel_texts.append(f"Celula {c_idx+1}: {titulos}")
                             st.text(f"Linha {l_idx+1}: " + " | ".join(cel_texts))
+
         if st.session_state.formulario.get("secoes"):
             secao_opcoes = [sec.get("titulo", f"Seção {i}") for i, sec in enumerate(st.session_state.formulario["secoes"])]
             indice_selecao = st.selectbox("Selecione a Seção para adicionar um campo", options=range(len(secao_opcoes)), format_func=lambda i: secao_opcoes[i])
@@ -315,9 +307,6 @@ with aba[0]:
                 titulo = st.text_input("Título do Campo", key=f"title_add_{indice_selecao}")
                 obrig = st.checkbox("Obrigatório", key=f"obrig_add_{indice_selecao}")
                 in_tabela = st.checkbox("Dentro da tabela?", key=f"tabela_add_{indice_selecao}")
-                linha_tabela = None
-                if in_tabela:
-                    linha_tabela = st.number_input("Número da linha na tabela", min_value=1, step=1, key=f"linha_add_{indice_selecao}")
                 largura = st.number_input("Largura (px)", min_value=100, value=450, step=10, key=f"larg_add_{indice_selecao}")
                 altura = None
                 if tipo == "texto-area":
@@ -344,17 +333,7 @@ with aba[0]:
                         "dominios": dominios_temp,
                         "valor": ""
                     }
-                    adicionar_campo_secao(secao_atual, campo, linha_tabela)
-                    st.rerun()
-
-            if st.button("Fechar Tabela", key=f"fechar_tabela_{indice_selecao}"):
-                if secao_atual.get("tabela_aberta", False):
-                    if secao_atual.get("linha_atual_num") is not None:
-                        secao_atual["linha_atual_num"] = None
-                    secao_atual["elementos"].append({"tipo_elemento": "tabela", "tabela": secao_atual["tabela_atual"]})
-                    secao_atual["tabela_atual"] = []
-                    secao_atual["tabela_aberta"] = False
-                    st.success("Tabela fechada.")
+                    adicionar_campo_secao(secao_atual, campo)
                     st.rerun()
 
     with col2:
