@@ -267,20 +267,20 @@ with aba[0]:
                 if st.session_state.nova_secao["titulo"]:
                     st.session_state.formulario["secoes"].append(st.session_state.nova_secao.copy())
                     st.session_state.nova_secao = {"titulo": "", "largura": 500, "campos": []}
-                    st.experimental_rerun()
+                    st.rerun()
         st.markdown("---")
         for s_idx, sec in enumerate(st.session_state.formulario.get("secoes", [])):
             with st.expander(f"📁 Seção: {sec.get('titulo','(sem título)')}", expanded=False):
                 st.write(f"**Largura:** {sec.get('largura', 500)}")
                 if st.button(f"🗑️ Excluir Seção", key=f"del_sec_{s_idx}"):
                     st.session_state.formulario["secoes"].pop(s_idx)
-                    st.experimental_rerun()
+                    st.rerun()
                 st.markdown("### Campos e Tabelas")
                 for c_idx, campo in enumerate(sec.get("campos", [])):
                     st.text(f"{campo.get('tipo')} - {campo.get('titulo')}")
                     if st.button("Excluir Campo", key=f"del_field_{s_idx}_{c_idx}"):
                         sec["campos"].pop(c_idx)
-                        st.experimental_rerun()
+                        st.rerun()
                 if "tabelas" in sec:
                     for t_idx, tabela in enumerate(sec["tabelas"]):
                         st.markdown(f"**Tabela {t_idx+1}:**")
@@ -331,7 +331,7 @@ with aba[0]:
                         "valor": ""
                     }
                     adicionar_campo_secao(secao_atual, campo, linha_tabela, finalizar_tabela)
-                    st.experimental_rerun()
+                    st.rerun()
 
     with col2:
         preview_formulario(st.session_state.formulario, context_key="builder")
