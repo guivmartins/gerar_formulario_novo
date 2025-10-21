@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import xmltodict
 
-st.set_page_config(page_title="Construtor de Formulários Completo 7.14", layout="wide")
+st.set_page_config(page_title="Construtor de Formulários Completo 7.15", layout="wide")
 
 if "formulario" not in st.session_state:
     st.session_state.formulario = {
@@ -257,13 +257,12 @@ def reorder_elementos(elementos, idx, direcao):
     elementos[idx], elementos[novo_idx] = elementos[novo_idx], elementos[idx]
     return elementos
 
-# Interface
 aba = st.tabs(["Construtor", "Importar arquivo"])
 
 with aba[0]:
     col1, col2 = st.columns([3, 2])
     with col1:
-        st.title("Construtor de Formulários Completo 7.14")
+        st.title("Construtor de Formulários Completo 7.15")
         st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", st.session_state.formulario["nome"])
         st.markdown("---")
 
@@ -355,6 +354,14 @@ with aba[0]:
                     adicionar_campo_secao(secao_atual, campo, linha_tabela)
                     st.rerun()
 
+    with col2:
+        preview_formulario(st.session_state.formulario, context_key="builder")
+
+        st.markdown("---")
+        st.subheader("📑 Pré-visualização XML")
+        xml_preview = gerar_xml(st.session_state.formulario)
+        st.code(xml_preview, language="xml")
+
 with aba[1]:
     st.title("Importar Arquivo de Formulário")
     uploaded_file = st.file_uploader("Escolha o arquivo XML para importar", type=["xml", "gfe"])
@@ -435,7 +442,6 @@ with aba[1]:
         except Exception as e:
             st.error(f"Erro ao importar arquivo: {str(e)}")
 
-# Funções auxiliares
 def reorder_elementos(elementos, idx, direcao):
     novo_idx = idx + direcao
     if novo_idx < 0 or novo_idx >= len(elementos):
