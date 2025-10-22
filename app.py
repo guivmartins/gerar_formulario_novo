@@ -53,7 +53,7 @@ def gerar_xml(formulario: dict) -> str:
                 if tipo in ["paragrafo", "rotulo"]:
                     ET.SubElement(subelems, "elemento", {
                         "gxsi:type": tipo,
-                        "valor": titulo,  # sempre título para paragrafo e rotulo
+                        "valor": titulo,
                         "largura": largura
                     })
                     continue
@@ -110,7 +110,7 @@ def gerar_xml(formulario: dict) -> str:
                             if tipo in ["paragrafo", "rotulo"]:
                                 ET.SubElement(elementos_tag, "elemento", {
                                     "gxsi:type": tipo,
-                                    "valor": titulo,  # mesmo ajuste para paragrafo/rotulo em tabela
+                                    "valor": titulo,
                                     "largura": largura
                                 })
                                 continue
@@ -174,7 +174,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                     st.date_input(campo.get("titulo", ""), key=key_prev)
                 elif tipo == "grupoCheck":
                     st.markdown(f"**{campo.get('titulo', '')}**")
-                    col_count = campo.get("colunas", 1)
+                    col_count = int(campo.get("colunas", 1) or 1)
                     cols = st.columns(col_count)
                     for i, dom in enumerate(campo.get("dominios", [])):
                         col_idx = i % col_count
@@ -212,7 +212,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                                     st.date_input(campo.get("titulo", ""), key=key_prev)
                                 elif tipo == "grupoCheck":
                                     st.markdown(f"**{campo.get('titulo', '')}**")
-                                    col_count = campo.get("colunas", 1)
+                                    col_count = int(campo.get("colunas", 1) or 1)
                                     cols_tab = st.columns(col_count)
                                     for i, dom in enumerate(campo.get("dominios", [])):
                                         col_idx = i % col_count
