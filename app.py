@@ -155,22 +155,27 @@ def gerar_xml(formulario: dict) -> str:
 def preview_formulario(formulario: dict, context_key: str = "main"):
     st.header("📋 Pré-visualização do Formulário")
     st.subheader(formulario.get("nome", ""))
+
+    largura_base = 500
+    if formulario.get("secoes"):
+        largura_base = int(formulario["secoes"][0].get("largura", 500))
+    total_cols = 12  # total colunas para grade proporcional
+
     for s_idx, sec in enumerate(formulario.get("secoes", [])):
-        largura_secao = int(sec.get("largura", 500))
         st.markdown(f"### {sec.get('titulo')}")
         sec_container = st.container()
         with sec_container:
             elementos_lista = sec.get("elementos", [])
             for idx, item in enumerate(elementos_lista):
                 campo = item.get("campo") if item["tipo_elemento"] == "campo" else None
-                tipo = campo.get("tipo") if campo else ""
                 largura_elem = int(campo.get("largura", 450)) if campo else 450
-                # Simular largura com coluna
-                col_w = max(int(largura_elem / 100), 1)
-                cols_elem = st.columns(col_w)
-                with cols_elem[0]:  # Mantém elemento à esquerda se largura pequena
+                col_w_ratio = largura_elem / largura_base
+                col_w = max(1, int(col_w_ratio * total_cols))
+                cols_elem = st.columns([col_w] + [1]*(total_cols - col_w))
+                with cols_elem[0]:
                     if item["tipo_elemento"] == "campo":
                         key_prev = f"prev_{context_key}_{s_idx}_{idx}_{sec.get('titulo')}_{campo.get('titulo')}"
+                        tipo = campo.get("tipo")
                         if tipo == "texto":
                             st.text_input(campo.get("titulo", ""), key=key_prev)
                         elif tipo == "texto-area":
@@ -190,7 +195,6 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                             st.markdown(f"**{campo.get('titulo', '')}**")
                             dominios = campo.get("dominios", [])
                             colunas = max(1, campo.get("colunas", 1))
-                            # Divide opções nas colunas
                             options = [d.get("descricao","") for d in dominios]
                             chunked = [options[i::colunas] for i in range(colunas)]
                             cols_gr = st.columns(colunas)
@@ -216,19 +220,20 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                             for c_idx, celula in enumerate(linha):
                                 with cols_linha[c_idx]:
                                     for c_idx2, campo_tab in enumerate(celula):
-                                        tipo = campo_tab.get("tipo")
-                                        key_prev = f"prev_{context_key}_{s_idx}_t{idx}_l{linha_idx}_c{c_idx}_f{c_idx2}_{sec.get('titulo')}_{campo_tab.get('titulo')}"
                                         largura_elem_tab = int(campo_tab.get("largura", 450))
-                                        col_w_tab = max(int(largura_elem_tab / 100), 1)
-                                        cols_elem_tab = st.columns(col_w_tab)
+                                        col_w_ratio_tab = largura_elem_tab / largura_base
+                                        col_w_tab = max(1, int(col_w_ratio_tab * total_cols))
+                                        cols_elem_tab = st.columns([col_w_tab] + [1]*(total_cols - col_w_tab))
                                         with cols_elem_tab[0]:
-                                            if tipo == "texto":
+                                            tipo_tab = campo_tab.get("tipo")
+                                            key_prev = f"prev_{context_key}_{s_idx}_t{idx}_l{linha_idx}_c{c_idx}_f{c_idx2}_{sec.get('titulo')}_{campo_tab.get('titulo')}"
+                                            if tipo_tab == "texto":
                                                 st.text_input(campo_tab.get("titulo", ""), key=key_prev)
-                                            elif tipo == "texto-area":
+                                            elif tipo_tab == "texto-area":
                                                 st.text_area(campo_tab.get("titulo", ""), height=campo_tab.get("altura", 100), key=key_prev)
-                                            elif tipo == "data":
+                                            elif tipo_tab == "data":
                                                 st.date_input(campo_tab.get("titulo", ""), key=key_prev)
-                                            elif tipo == "grupoCheck":
+                                            elif tipo_tab == "grupoCheck":
                                                 st.markdown(f"**{campo_tab.get('titulo', '')}**")
                                                 dominios = campo_tab.get("dominios", [])
                                                 colunas = max(1, campo_tab.get("colunas", 1))
@@ -237,7 +242,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                                                     col_gc = cols_gc[idx_dom % colunas]
                                                     with col_gc:
                                                         st.checkbox(dom.get("descricao",""), key=f"{key_prev}_{idx_dom}")
-                                            elif tipo == "grupoRadio":
+                                            elif tipo_tab == "grupoRadio":
                                                 st.markdown(f"**{campo_tab.get('titulo', '')}**")
                                                 dominios = campo_tab.get("dominios", [])
                                                 colunas = max(1, campo_tab.get("colunas", 1))
@@ -248,13 +253,13 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                                                     with col_gr:
                                                         for radio_val in opt_list:
                                                             st.radio("", [radio_val], key=f"{key_prev}_{radio_val}")
-                                            elif tipo in ["comboBox", "comboFiltro"]:
+                                            elif tipo_tab in ["comboBox", "comboFiltro"]:
                                                 st.multiselect(campo_tab.get("titulo", ""), [d.get("descricao","") for d in campo_tab.get("dominios", [])], key=key_prev)
-                                            elif tipo == "check":
+                                            elif tipo_tab == "check":
                                                 st.checkbox(campo_tab.get("titulo", ""), key=key_prev)
-                                            elif tipo == "rotulo":
+                                            elif tipo_tab == "rotulo":
                                                 st.markdown(f"**{campo_tab.get('titulo', '')}**")
-                                            elif tipo == "paragrafo":
+                                            elif tipo_tab == "paragrafo":
                                                 conteudo = campo_tab.get("titulo", "")
                                                 conteudo = str(conteudo).replace("\\n", "\n")
                                                 st.markdown(conteudo)
@@ -392,14 +397,6 @@ with aba[0]:
                     }
                     adicionar_campo_secao(secao_atual, campo, linha_tabela)
                     st.rerun()
-
-    with col2:
-        preview_formulario(st.session_state.formulario, context_key="builder")
-
-        st.markdown("---")
-        st.subheader("📑 Pré-visualização XML")
-        xml_preview = gerar_xml(st.session_state.formulario)
-        st.code(xml_preview, language="xml")
 
 with aba[1]:
     st.title("Importar Arquivo de Formulário")
