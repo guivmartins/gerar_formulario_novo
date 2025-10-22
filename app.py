@@ -155,81 +155,109 @@ def gerar_xml(formulario: dict) -> str:
 def preview_formulario(formulario: dict, context_key: str = "main"):
     st.header("📋 Pré-visualização do Formulário")
     st.subheader(formulario.get("nome", ""))
-
     for s_idx, sec in enumerate(formulario.get("secoes", [])):
+        largura_secao = int(sec.get("largura", 500))
         st.markdown(f"### {sec.get('titulo')}")
-
-        elementos_lista = sec.get("elementos", [])
-        for idx, item in enumerate(elementos_lista):
-            if item["tipo_elemento"] == "campo":
-                campo = item["campo"]
-                tipo = campo.get("tipo")
-                key_prev = f"prev_{context_key}_{s_idx}_{idx}_{sec.get('titulo')}_{campo.get('titulo')}"
-
-                if tipo == "texto":
-                    st.text_input(campo.get("titulo", ""), key=key_prev)
-                elif tipo == "texto-area":
-                    st.text_area(campo.get("titulo", ""), height=campo.get("altura", 100), key=key_prev)
-                elif tipo == "data":
-                    st.date_input(campo.get("titulo", ""), key=key_prev)
-                elif tipo == "grupoCheck":
-                    st.markdown(f"**{campo.get('titulo', '')}**")
-                    col_count = int(campo.get("colunas", 1) or 1)
-                    cols = st.columns(col_count)
-                    for i, dom in enumerate(campo.get("dominios", [])):
-                        col_idx = i % col_count
-                        with cols[col_idx]:
-                            st.checkbox(dom["descricao"], key=f"{key_prev}_{i}")
-                elif tipo in ["comboBox", "comboFiltro"]:
-                    st.multiselect(campo.get("titulo", ""), [d["descricao"] for d in campo.get("dominios", [])], key=key_prev)
-                elif tipo == "grupoRadio":
-                    st.radio(campo.get("titulo", ""), [d["descricao"] for d in campo.get("dominios", [])], key=key_prev)
-                elif tipo == "check":
-                    st.checkbox(campo.get("titulo", ""), key=key_prev)
-                elif tipo == "rotulo":
-                    conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
-                    st.markdown(f"**{conteudo}**")
-                elif tipo == "paragrafo":
-                    conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
-                    conteudo = str(conteudo).replace("\\n", "\n")
-                    st.markdown(conteudo)
-
-            elif item["tipo_elemento"] == "tabela":
-                tabela = item["tabela"]
-                st.markdown("**Tabela**")
-                for linha_idx, linha in enumerate(tabela):
-                    cols = st.columns(len(linha))
-                    for c_idx, celula in enumerate(linha):
-                        with cols[c_idx]:
-                            for c_idx2, campo in enumerate(celula):
-                                tipo = campo.get("tipo")
-                                key_prev = f"prev_{context_key}_{s_idx}_t{idx}_l{linha_idx}_c{c_idx}_f{c_idx2}_{sec.get('titulo')}_{campo.get('titulo')}"
-                                if tipo == "texto":
-                                    st.text_input(campo.get("titulo", ""), key=key_prev)
-                                elif tipo == "texto-area":
-                                    st.text_area(campo.get("titulo", ""), height=campo.get("altura", 100), key=key_prev)
-                                elif tipo == "data":
-                                    st.date_input(campo.get("titulo", ""), key=key_prev)
-                                elif tipo == "grupoCheck":
-                                    st.markdown(f"**{campo.get('titulo', '')}**")
-                                    col_count = int(campo.get("colunas", 1) or 1)
-                                    cols_tab = st.columns(col_count)
-                                    for i, dom in enumerate(campo.get("dominios", [])):
-                                        col_idx = i % col_count
-                                        with cols_tab[col_idx]:
-                                            st.checkbox(dom["descricao"], key=f"{key_prev}_{i}")
-                                elif tipo in ["comboBox", "comboFiltro"]:
-                                    st.multiselect(campo.get("titulo", ""), [d["descricao"] for d in campo.get("dominios", [])], key=key_prev)
-                                elif tipo == "grupoRadio":
-                                    st.radio(campo.get("titulo", ""), [d["descricao"] for d in campo.get("dominios", [])], key=key_prev)
-                                elif tipo == "check":
-                                    st.checkbox(campo.get("titulo", ""), key=key_prev)
-                                elif tipo == "rotulo":
-                                    st.markdown(f"**{campo.get('valor') or campo.get('descricao') or campo.get('titulo') or ''}**")
-                                elif tipo == "paragrafo":
-                                    conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
-                                    conteudo = str(conteudo).replace("\\n", "\n")
-                                    st.markdown(conteudo)
+        sec_container = st.container()
+        with sec_container:
+            elementos_lista = sec.get("elementos", [])
+            for idx, item in enumerate(elementos_lista):
+                campo = item.get("campo") if item["tipo_elemento"] == "campo" else None
+                tipo = campo.get("tipo") if campo else ""
+                largura_elem = int(campo.get("largura", 450)) if campo else 450
+                # Simular largura com coluna
+                col_w = max(int(largura_elem / 100), 1)
+                cols_elem = st.columns(col_w)
+                with cols_elem[0]:  # Mantém elemento à esquerda se largura pequena
+                    if item["tipo_elemento"] == "campo":
+                        key_prev = f"prev_{context_key}_{s_idx}_{idx}_{sec.get('titulo')}_{campo.get('titulo')}"
+                        if tipo == "texto":
+                            st.text_input(campo.get("titulo", ""), key=key_prev)
+                        elif tipo == "texto-area":
+                            st.text_area(campo.get("titulo", ""), height=campo.get("altura", 100), key=key_prev)
+                        elif tipo == "data":
+                            st.date_input(campo.get("titulo", ""), key=key_prev)
+                        elif tipo == "grupoCheck":
+                            st.markdown(f"**{campo.get('titulo', '')}**")
+                            dominios = campo.get("dominios", [])
+                            colunas = max(1, campo.get("colunas", 1))
+                            cols_gc = st.columns(colunas)
+                            for idx_dom, dom in enumerate(dominios):
+                                col_gc = cols_gc[idx_dom % colunas]
+                                with col_gc:
+                                    st.checkbox(dom.get("descricao",""), key=f"{key_prev}_{idx_dom}")
+                        elif tipo == "grupoRadio":
+                            st.markdown(f"**{campo.get('titulo', '')}**")
+                            dominios = campo.get("dominios", [])
+                            colunas = max(1, campo.get("colunas", 1))
+                            # Divide opções nas colunas
+                            options = [d.get("descricao","") for d in dominios]
+                            chunked = [options[i::colunas] for i in range(colunas)]
+                            cols_gr = st.columns(colunas)
+                            for opt_list, col_gr in zip(chunked, cols_gr):
+                                with col_gr:
+                                    for radio_val in opt_list:
+                                        st.radio("", [radio_val], key=f"{key_prev}_{radio_val}")
+                        elif tipo in ["comboBox", "comboFiltro"]:
+                            st.multiselect(campo.get("titulo", ""), [d.get("descricao","") for d in campo.get("dominios", [])], key=key_prev)
+                        elif tipo == "check":
+                            st.checkbox(campo.get("titulo", ""), key=key_prev)
+                        elif tipo == "rotulo":
+                            st.markdown(f"**{campo.get('titulo', '')}**")
+                        elif tipo == "paragrafo":
+                            conteudo = campo.get("titulo", "")
+                            conteudo = str(conteudo).replace("\\n", "\n")
+                            st.markdown(conteudo)
+                    elif item["tipo_elemento"] == "tabela":
+                        tabela = item["tabela"]
+                        st.markdown("**Tabela:**")
+                        for linha_idx, linha in enumerate(tabela):
+                            cols_linha = st.columns(len(linha))
+                            for c_idx, celula in enumerate(linha):
+                                with cols_linha[c_idx]:
+                                    for c_idx2, campo_tab in enumerate(celula):
+                                        tipo = campo_tab.get("tipo")
+                                        key_prev = f"prev_{context_key}_{s_idx}_t{idx}_l{linha_idx}_c{c_idx}_f{c_idx2}_{sec.get('titulo')}_{campo_tab.get('titulo')}"
+                                        largura_elem_tab = int(campo_tab.get("largura", 450))
+                                        col_w_tab = max(int(largura_elem_tab / 100), 1)
+                                        cols_elem_tab = st.columns(col_w_tab)
+                                        with cols_elem_tab[0]:
+                                            if tipo == "texto":
+                                                st.text_input(campo_tab.get("titulo", ""), key=key_prev)
+                                            elif tipo == "texto-area":
+                                                st.text_area(campo_tab.get("titulo", ""), height=campo_tab.get("altura", 100), key=key_prev)
+                                            elif tipo == "data":
+                                                st.date_input(campo_tab.get("titulo", ""), key=key_prev)
+                                            elif tipo == "grupoCheck":
+                                                st.markdown(f"**{campo_tab.get('titulo', '')}**")
+                                                dominios = campo_tab.get("dominios", [])
+                                                colunas = max(1, campo_tab.get("colunas", 1))
+                                                cols_gc = st.columns(colunas)
+                                                for idx_dom, dom in enumerate(dominios):
+                                                    col_gc = cols_gc[idx_dom % colunas]
+                                                    with col_gc:
+                                                        st.checkbox(dom.get("descricao",""), key=f"{key_prev}_{idx_dom}")
+                                            elif tipo == "grupoRadio":
+                                                st.markdown(f"**{campo_tab.get('titulo', '')}**")
+                                                dominios = campo_tab.get("dominios", [])
+                                                colunas = max(1, campo_tab.get("colunas", 1))
+                                                options = [d.get("descricao","") for d in dominios]
+                                                chunked = [options[i::colunas] for i in range(colunas)]
+                                                cols_gr = st.columns(colunas)
+                                                for opt_list, col_gr in zip(chunked, cols_gr):
+                                                    with col_gr:
+                                                        for radio_val in opt_list:
+                                                            st.radio("", [radio_val], key=f"{key_prev}_{radio_val}")
+                                            elif tipo in ["comboBox", "comboFiltro"]:
+                                                st.multiselect(campo_tab.get("titulo", ""), [d.get("descricao","") for d in campo_tab.get("dominios", [])], key=key_prev)
+                                            elif tipo == "check":
+                                                st.checkbox(campo_tab.get("titulo", ""), key=key_prev)
+                                            elif tipo == "rotulo":
+                                                st.markdown(f"**{campo_tab.get('titulo', '')}**")
+                                            elif tipo == "paragrafo":
+                                                conteudo = campo_tab.get("titulo", "")
+                                                conteudo = str(conteudo).replace("\\n", "\n")
+                                                st.markdown(conteudo)
 
 def adicionar_campo_secao(secao, campo, linha_num=None):
     if campo.get("in_tabela"):
@@ -452,3 +480,40 @@ with aba[1]:
                 st.error("Arquivo não contém estrutura válida de formulário.")
         except Exception as e:
             st.error(f"Erro ao importar arquivo: {str(e)}")
+
+def adicionar_campo_secao(secao, campo, linha_num=None):
+    if campo.get("in_tabela"):
+        if not secao.get("tabela_aberta", False):
+            secao["tabela_aberta"] = True
+            secao["tabela_atual"] = []
+            secao["linha_atual_num"] = None
+            if "elementos" not in secao:
+                secao["elementos"] = []
+        if linha_num is None:
+            st.warning("Informe número da linha para inserir na tabela.")
+            return
+        if secao["linha_atual_num"] != linha_num:
+            secao["linha_atual_num"] = linha_num
+            secao["tabela_atual"].append([])
+        linha_atual = secao["tabela_atual"][-1]
+        linha_atual.append([campo])
+        if not any(el.get("tipo_elemento") == "tabela" and el.get("tabela") == secao["tabela_atual"] for el in secao.get("elementos", [])):
+            secao["elementos"].append({"tipo_elemento": "tabela", "tabela": secao["tabela_atual"]})
+    else:
+        if secao.get("tabela_aberta", False):
+            if secao.get("linha_atual_num") is not None:
+                secao["linha_atual_num"] = None
+            if not any(el.get("tipo_elemento") == "tabela" and el.get("tabela") == secao["tabela_atual"] for el in secao.get("elementos", [])):
+                secao["elementos"].append({"tipo_elemento": "tabela", "tabela": secao["tabela_atual"]})
+            secao["tabela_atual"] = []
+            secao["tabela_aberta"] = False
+        if "elementos" not in secao:
+            secao["elementos"] = []
+        secao["elementos"].append({"tipo_elemento": "campo", "campo": campo})
+
+def reorder_elementos(elementos, idx, direcao):
+    novo_idx = idx + direcao
+    if novo_idx < 0 or novo_idx >= len(elementos):
+        return elementos
+    elementos[idx], elementos[novo_idx] = elementos[novo_idx], elementos[idx]
+    return elementos
