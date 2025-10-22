@@ -171,7 +171,10 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                 largura_elem = int(campo.get("largura", 450)) if campo else 450
                 col_w_ratio = largura_elem / largura_base
                 col_w = max(1, int(col_w_ratio * total_cols))
-                cols_elem = st.columns([col_w] + [1]*(total_cols - col_w))
+                if col_w >= total_cols:
+                    cols_elem = st.columns([total_cols])
+                else:
+                    cols_elem = st.columns([col_w, total_cols - col_w])
                 with cols_elem[0]:
                     if item["tipo_elemento"] == "campo":
                         key_prev = f"prev_{context_key}_{s_idx}_{idx}_{sec.get('titulo')}_{campo.get('titulo')}"
@@ -223,7 +226,10 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                                         largura_elem_tab = int(campo_tab.get("largura", 450))
                                         col_w_ratio_tab = largura_elem_tab / largura_base
                                         col_w_tab = max(1, int(col_w_ratio_tab * total_cols))
-                                        cols_elem_tab = st.columns([col_w_tab] + [1]*(total_cols - col_w_tab))
+                                        if col_w_tab >= total_cols:
+                                            cols_elem_tab = st.columns([total_cols])
+                                        else:
+                                            cols_elem_tab = st.columns([col_w_tab, total_cols - col_w_tab])
                                         with cols_elem_tab[0]:
                                             tipo_tab = campo_tab.get("tipo")
                                             key_prev = f"prev_{context_key}_{s_idx}_t{idx}_l{linha_idx}_c{c_idx}_f{c_idx2}_{sec.get('titulo')}_{campo_tab.get('titulo')}"
@@ -397,120 +403,3 @@ with aba[0]:
                     }
                     adicionar_campo_secao(secao_atual, campo, linha_tabela)
                     st.rerun()
-
-with aba[1]:
-    st.title("Importar Arquivo de Formulário")
-    uploaded_file = st.file_uploader("Escolha o arquivo XML para importar", type=["xml", "gfe"])
-    if uploaded_file is not None:
-        try:
-            content = uploaded_file.read()
-            dict_parsed = xmltodict.parse(content)
-            formulario_dict = {}
-            if "gxsi:formulario" in dict_parsed:
-                form_data = dict_parsed["gxsi:formulario"]
-                formulario_dict["nome"] = form_data.get("@nome", "")
-                formulario_dict["versao"] = form_data.get("@versao", "1.0")
-                formulario_dict["secoes"] = []
-
-                elementos = form_data.get("elementos", {}).get("elemento", [])
-                if not isinstance(elementos, list):
-                    elementos = [elementos]
-
-                for elem in elementos:
-                    if elem.get("@gxsi:type") == "seccao":
-                        sec = {
-                            "titulo": elem.get("@titulo", ""),
-                            "largura": int(elem.get("@largura", "500")),
-                            "elementos": []
-                        }
-                        sec_elementos = elem.get("elementos", {}).get("elemento", [])
-                        if not isinstance(sec_elementos, list):
-                            sec_elementos = [sec_elementos]
-                        for se in sec_elementos:
-                            tipo = se.get("@gxsi:type")
-                            if tipo == "tabela":
-                                linhas = se.get("linhas", {}).get("linha", [])
-                                if not isinstance(linhas, list):
-                                    linhas = [linhas]
-                                tabela = []
-                                for linha in linhas:
-                                    celulas = linha.get("celulas", {}).get("celula", [])
-                                    if not isinstance(celulas, list):
-                                        celulas = [celulas]
-                                    linha_lista = []
-                                    for cel in celulas:
-                                        elementos_cel = cel.get("elementos", {}).get("elemento", [])
-                                        if not isinstance(elementos_cel, list):
-                                            elementos_cel = [elementos_cel]
-                                        campos = []
-                                        for c in elementos_cel:
-                                            c_info = {
-                                                "tipo": c.get("@gxsi:type", "texto"),
-                                                "titulo": c.get("@titulo", ""),
-                                                "descricao": c.get("@descricao", ""),
-                                                "obrigatorio": c.get("@obrigatorio", "false") == "true",
-                                                "largura": int(c.get("@largura", "450")),
-                                                "altura": int(c.get("@altura", "0")) if c.get("@altura") else None,
-                                                "colunas": int(c.get("@colunas", "1"))
-                                            }
-                                            campos.append(c_info)
-                                        linha_lista.append(campos)
-                                    tabela.append(linha_lista)
-                                sec["elementos"].append({"tipo_elemento": "tabela", "tabela": tabela})
-                            else:
-                                c_info = {
-                                    "tipo": tipo,
-                                    "titulo": se.get("@titulo", ""),
-                                    "descricao": se.get("@descricao", ""),
-                                    "obrigatorio": se.get("@obrigatorio", "false") == "true",
-                                    "largura": int(se.get("@largura", "450")),
-                                    "altura": int(se.get("@altura", "0")) if se.get("@altura") else None,
-                                    "colunas": int(se.get("@colunas", "1")),
-                                    "in_tabela": False,
-                                    "dominios": []
-                                }
-                                sec["elementos"].append({"tipo_elemento": "campo", "campo": c_info})
-                        formulario_dict["secoes"].append(sec)
-                st.session_state.formulario = formulario_dict
-                st.success("Arquivo importado com sucesso!")
-            else:
-                st.error("Arquivo não contém estrutura válida de formulário.")
-        except Exception as e:
-            st.error(f"Erro ao importar arquivo: {str(e)}")
-
-def adicionar_campo_secao(secao, campo, linha_num=None):
-    if campo.get("in_tabela"):
-        if not secao.get("tabela_aberta", False):
-            secao["tabela_aberta"] = True
-            secao["tabela_atual"] = []
-            secao["linha_atual_num"] = None
-            if "elementos" not in secao:
-                secao["elementos"] = []
-        if linha_num is None:
-            st.warning("Informe número da linha para inserir na tabela.")
-            return
-        if secao["linha_atual_num"] != linha_num:
-            secao["linha_atual_num"] = linha_num
-            secao["tabela_atual"].append([])
-        linha_atual = secao["tabela_atual"][-1]
-        linha_atual.append([campo])
-        if not any(el.get("tipo_elemento") == "tabela" and el.get("tabela") == secao["tabela_atual"] for el in secao.get("elementos", [])):
-            secao["elementos"].append({"tipo_elemento": "tabela", "tabela": secao["tabela_atual"]})
-    else:
-        if secao.get("tabela_aberta", False):
-            if secao.get("linha_atual_num") is not None:
-                secao["linha_atual_num"] = None
-            if not any(el.get("tipo_elemento") == "tabela" and el.get("tabela") == secao["tabela_atual"] for el in secao.get("elementos", [])):
-                secao["elementos"].append({"tipo_elemento": "tabela", "tabela": secao["tabela_atual"]})
-            secao["tabela_atual"] = []
-            secao["tabela_aberta"] = False
-        if "elementos" not in secao:
-            secao["elementos"] = []
-        secao["elementos"].append({"tipo_elemento": "campo", "campo": campo})
-
-def reorder_elementos(elementos, idx, direcao):
-    novo_idx = idx + direcao
-    if novo_idx < 0 or novo_idx >= len(elementos):
-        return elementos
-    elementos[idx], elementos[novo_idx] = elementos[novo_idx], elementos[idx]
-    return elementos
