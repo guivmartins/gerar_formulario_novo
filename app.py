@@ -284,7 +284,7 @@ with aba[0]:
                 if st.session_state.nova_secao["titulo"]:
                     st.session_state.formulario["secoes"].append(st.session_state.nova_secao.copy())
                     st.session_state.nova_secao = {"titulo": "", "largura": 500, "elementos": []}
-                    st.experimental_rerun()
+                    st.rerun()
 
         st.markdown("---")
 
@@ -293,7 +293,7 @@ with aba[0]:
                 st.write(f"**Largura:** {sec.get('largura', 500)}")
                 if st.button(f"🗑️ Excluir Seção", key=f"del_sec_{s_idx}"):
                     st.session_state.formulario["secoes"].pop(s_idx)
-                    st.experimental_rerun()
+                    st.rerun()
 
                 st.markdown("### Elementos na Seção (ordem mantida)")
                 elementos = sec.get("elementos", [])
@@ -302,11 +302,11 @@ with aba[0]:
                     with col_ord1:
                         if st.button("⬆️", key=f"up_{s_idx}_{i}"):
                             sec["elementos"] = reorder_elementos(elementos, i, -1)
-                            st.experimental_rerun()
+                            st.rerun()
                     with col_ord2:
                         if st.button("⬇️", key=f"down_{s_idx}_{i}"):
                             sec["elementos"] = reorder_elementos(elementos, i, 1)
-                            st.experimental_rerun()
+                            st.rerun()
                     with col_main:
                         if item["tipo_elemento"] == "campo":
                             st.text(f"Campo: {item['campo'].get('titulo', '')}")
@@ -321,7 +321,7 @@ with aba[0]:
                     with col_exc:
                         if st.button("❌", key=f"del_{s_idx}_{i}"):
                             elementos.pop(i)
-                            st.experimental_rerun()
+                            st.rerun()
 
         if st.session_state.formulario.get("secoes"):
             secao_opcoes = [sec.get("titulo", f"Seção {i}") for i, sec in enumerate(st.session_state.formulario["secoes"])]
@@ -363,7 +363,7 @@ with aba[0]:
                         "valor": ""
                     }
                     adicionar_campo_secao(secao_atual, campo, linha_tabela)
-                    st.experimental_rerun()
+                    st.rerun()
 
     with col2:
         preview_formulario(st.session_state.formulario, context_key="builder")
