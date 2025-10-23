@@ -27,21 +27,17 @@ def _prettify_xml(root: ET.Element) -> str:
     return parsed.toprettyxml(indent="   ", encoding="utf-8").decode("utf-8")
 
 def gerar_xml(formulario: dict) -> str:
-    # Namespace correto para XML Schema Instance (xsi)
-    root = ET.Element("formulario", {
-        "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+    root = ET.Element("gxsi:formulario", {
+        "xmlns:gxsi": "http://www.w3.org/2001/XMLSchema-instance",
         "nome": formulario.get("nome", ""),
         "versao": formulario.get("versao", "1.0")
     })
     elementos = ET.SubElement(root, "elementos")
     dominios_global = ET.Element("dominios")
 
-    # Evita domínios duplicados (mesma chave)
-    dominios_adicionados = set()
-
     for sec in formulario.get("secoes", []):
         sec_el = ET.SubElement(elementos, "elemento", {
-            "xsi:type": "seccao",
+            "gxsi:type": "seccao",
             "titulo": sec.get("titulo", ""),
             "largura": str(sec.get("largura", 500))
         })
@@ -54,19 +50,17 @@ def gerar_xml(formulario: dict) -> str:
                 titulo = campo.get("titulo", "")
                 obrig = str(bool(campo.get("obrigatorio", False))).lower()
                 largura = str(campo.get("largura", 450))
-
                 if tipo in ["paragrafo", "rotulo"]:
                     ET.SubElement(subelems, "elemento", {
-                        "xsi:type": tipo,
+                        "gxsi:type": tipo,
                         "valor": campo.get("valor", campo.get("descricao", titulo)),
                         "largura": largura
                     })
                     continue
-
                 if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"] and campo.get("dominios"):
                     chave_dom = titulo.replace(" ", "")[:20].upper()
                     attrs = {
-                        "xsi:type": tipo,
+                        "gxsi:type": tipo,
                         "titulo": titulo,
                         "descricao": campo.get("descricao", titulo),
                         "obrigatorio": obrig,
@@ -75,24 +69,20 @@ def gerar_xml(formulario: dict) -> str:
                         "dominio": chave_dom
                     }
                     ET.SubElement(subelems, "elemento", attrs)
-
-                    if chave_dom not in dominios_adicionados:
-                        dominios_adicionados.add(chave_dom)
-                        dominio_el = ET.SubElement(dominios_global, "dominio", {
-                            "xsi:type": "dominioEstatico",
-                            "chave": chave_dom
+                    dominio_el = ET.SubElement(dominios_global, "dominio", {
+                        "gxsi:type": "dominioEstatico",
+                        "chave": chave_dom
+                    })
+                    itens_el = ET.SubElement(dominio_el, "itens")
+                    for d in campo["dominios"]:
+                        ET.SubElement(itens_el, "item", {
+                            "gxsi:type": "dominioItemValor",
+                            "descricao": d["descricao"],
+                            "valor": d["valor"]
                         })
-                        itens_el = ET.SubElement(dominio_el, "itens")
-                        for d in campo.get("dominios", []):
-                            ET.SubElement(itens_el, "item", {
-                                "xsi:type": "dominioItemValor",
-                                "descricao": d.get("descricao", ""),
-                                "valor": d.get("valor", "")
-                            })
                     continue
-
                 attrs = {
-                    "xsi:type": tipo,
+                    "gxsi:type": tipo,
                     "titulo": titulo,
                     "descricao": campo.get("descricao", titulo),
                     "obrigatorio": obrig,
@@ -104,7 +94,7 @@ def gerar_xml(formulario: dict) -> str:
 
             elif item["tipo_elemento"] == "tabela":
                 tabela = item["tabela"]
-                tabela_el = ET.SubElement(subelems, "elemento", {"xsi:type": "tabela"})
+                tabela_el = ET.SubElement(subelems, "elemento", {"gxsi:type": "tabela"})
                 linhas_tag = ET.SubElement(tabela_el, "linhas")
                 for linha in tabela:
                     linha_tag = ET.SubElement(linhas_tag, "linha")
@@ -117,19 +107,17 @@ def gerar_xml(formulario: dict) -> str:
                             titulo = campo.get("titulo", "")
                             obrig = str(bool(campo.get("obrigatorio", False))).lower()
                             largura = str(campo.get("largura", 450))
-
                             if tipo in ["paragrafo", "rotulo"]:
                                 ET.SubElement(elementos_tag, "elemento", {
-                                    "xsi:type": tipo,
+                                    "gxsi:type": tipo,
                                     "valor": campo.get("valor", campo.get("descricao", titulo)),
                                     "largura": largura
                                 })
                                 continue
-
                             if tipo in ["comboBox", "comboFiltro", "grupoRadio", "grupoCheck"] and campo.get("dominios"):
                                 chave_dom = titulo.replace(" ", "")[:20].upper()
                                 attrs = {
-                                    "xsi:type": tipo,
+                                    "gxsi:type": tipo,
                                     "titulo": titulo,
                                     "descricao": campo.get("descricao", titulo),
                                     "obrigatorio": obrig,
@@ -138,24 +126,20 @@ def gerar_xml(formulario: dict) -> str:
                                     "dominio": chave_dom
                                 }
                                 ET.SubElement(elementos_tag, "elemento", attrs)
-
-                                if chave_dom not in dominios_adicionados:
-                                    dominios_adicionados.add(chave_dom)
-                                    dominio_el = ET.SubElement(dominios_global, "dominio", {
-                                        "xsi:type": "dominioEstatico",
-                                        "chave": chave_dom
+                                dominio_el = ET.SubElement(dominios_global, "dominio", {
+                                    "gxsi:type": "dominioEstatico",
+                                    "chave": chave_dom
+                                })
+                                itens_el = ET.SubElement(dominio_el, "itens")
+                                for d in campo["dominios"]:
+                                    ET.SubElement(itens_el, "item", {
+                                        "gxsi:type": "dominioItemValor",
+                                        "descricao": d["descricao"],
+                                        "valor": d["valor"]
                                     })
-                                    itens_el = ET.SubElement(dominio_el, "itens")
-                                    for d in campo.get("dominios", []):
-                                        ET.SubElement(itens_el, "item", {
-                                            "xsi:type": "dominioItemValor",
-                                            "descricao": d.get("descricao", ""),
-                                            "valor": d.get("valor", "")
-                                        })
                                 continue
-
                             attrs = {
-                                "xsi:type": tipo,
+                                "gxsi:type": tipo,
                                 "titulo": titulo,
                                 "descricao": campo.get("descricao", titulo),
                                 "obrigatorio": obrig,
@@ -188,11 +172,11 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                 elif tipo == "grupoCheck":
                     st.markdown(f"**{campo.get('titulo', '')}**")
                     for i, dom in enumerate(campo.get("dominios", [])):
-                        st.checkbox(dom.get("descricao", ""), key=f"{key_prev}_{i}")
+                        st.checkbox(dom["descricao"], key=f"{key_prev}_{i}")
                 elif tipo in ["comboBox", "comboFiltro"]:
-                    st.multiselect(campo.get("titulo", ""), [d.get("descricao", "") for d in campo.get("dominios", [])], key=key_prev)
+                    st.multiselect(campo.get("titulo", ""), [d["descricao"] for d in campo.get("dominios", [])], key=key_prev)
                 elif tipo == "grupoRadio":
-                    st.radio(campo.get("titulo", ""), [d.get("descricao", "") for d in campo.get("dominios", [])], key=key_prev)
+                    st.radio(campo.get("titulo", ""), [d["descricao"] for d in campo.get("dominios", [])], key=key_prev)
                 elif tipo == "check":
                     st.checkbox(campo.get("titulo", ""), key=key_prev)
                 elif tipo == "rotulo":
@@ -222,11 +206,11 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                                 elif tipo == "grupoCheck":
                                     st.markdown(f"**{campo.get('titulo', '')}**")
                                     for i, dom in enumerate(campo.get("dominios", [])):
-                                        st.checkbox(dom.get("descricao", ""), key=f"{key_prev}_{i}")
+                                        st.checkbox(dom["descricao"], key=f"{key_prev}_{i}")
                                 elif tipo in ["comboBox", "comboFiltro"]:
-                                    st.multiselect(campo.get("titulo", ""), [d.get("descricao", "") for d in campo.get("dominios", [])], key=key_prev)
+                                    st.multiselect(campo.get("titulo", ""), [d["descricao"] for d in campo.get("dominios", [])], key=key_prev)
                                 elif tipo == "grupoRadio":
-                                    st.radio(campo.get("titulo", ""), [d.get("descricao", "") for d in campo.get("dominios", [])], key=key_prev)
+                                    st.radio(campo.get("titulo", ""), [d["descricao"] for d in campo.get("dominios", [])], key=key_prev)
                                 elif tipo == "check":
                                     st.checkbox(campo.get("titulo", ""), key=key_prev)
                                 elif tipo == "rotulo":
@@ -272,27 +256,6 @@ def reorder_elementos(elementos, idx, direcao):
         return elementos
     elementos[idx], elementos[novo_idx] = elementos[novo_idx], elementos[idx]
     return elementos
-
-# Helpers para importação robusta
-def ensure_list(x):
-    if x is None:
-        return []
-    if isinstance(x, list):
-        return x
-    return [x]
-
-def get_attr(d: dict, local_name: str):
-    # Tenta "@local_name" (sem prefixo) e depois qualquer "@prefix:local_name"
-    direct = f"@{local_name}"
-    if direct in d:
-        return d[direct]
-    for k, v in d.items():
-        if k.startswith("@"):
-            # pega parte após ":" ou o próprio nome
-            suffix = k.split(":", 1)[-1]
-            if suffix == local_name:
-                return v
-    return None
 
 aba = st.tabs(["Construtor", "Importar arquivo"])
 
@@ -404,102 +367,88 @@ with aba[1]:
     uploaded_file = st.file_uploader("Escolha o arquivo XML para importar", type=["xml", "gfe"])
     if uploaded_file is not None:
         try:
-            # getvalue() retorna bytes (UploadedFile é BytesIO-like)
-            content = uploaded_file.getvalue()
+            content = uploaded_file.read()
             dict_parsed = xmltodict.parse(content)
-
-            # Detecta root "formulario" com ou sem prefixo
-            form_data = None
-            if "formulario" in dict_parsed:
-                form_data = dict_parsed["formulario"]
-            elif "gxsi:formulario" in dict_parsed:
-                form_data = dict_parsed["gxsi:formulario"]
-            else:
-                # qualquer chave terminando em ":formulario"
-                for k in dict_parsed.keys():
-                    if k.endswith(":formulario"):
-                        form_data = dict_parsed[k]
-                        break
-
             formulario_dict = {}
-            if form_data is not None:
+            if "gxsi:formulario" in dict_parsed:
+                form_data = dict_parsed["gxsi:formulario"]
                 formulario_dict["nome"] = form_data.get("@nome", "")
                 formulario_dict["versao"] = form_data.get("@versao", "1.0")
                 formulario_dict["secoes"] = []
 
-                # Carrega mapa de domínios globais
-                dominios_raw = form_data.get("dominios", {})
-                dominios_list = ensure_list(dominios_raw.get("dominio"))
-                dom_mapa = {}
-                for d in dominios_list:
-                    chave = d.get("@chave")
-                    itens = ensure_list((d.get("itens") or {}).get("item"))
-                    if chave:
-                        dom_mapa[chave] = [{"descricao": it.get("@descricao", ""), "valor": it.get("@valor", "")} for it in itens]
-
-                elementos = ensure_list((form_data.get("elementos") or {}).get("elemento"))
+                elementos = (form_data.get("elementos") or {}).get("elemento", [])
+                if not isinstance(elementos, list):
+                    elementos = [elementos] if elementos else []
 
                 for elem in elementos:
-                    tipo_sec = get_attr(elem, "type")  # lida com @xsi:type, @gxsi:type ou similar
-                    if tipo_sec == "seccao":
+                    if elem.get("@gxsi:type") == "seccao":
                         sec = {
                             "titulo": elem.get("@titulo", ""),
                             "largura": int(elem.get("@largura", "500")),
                             "elementos": []
                         }
-                        sec_elementos = ensure_list((elem.get("elementos") or {}).get("elemento"))
+                        sec_elementos = (elem.get("elementos") or {}).get("elemento", [])
+                        if not isinstance(sec_elementos, list):
+                            sec_elementos = [sec_elementos] if sec_elementos else []
                         for se in sec_elementos:
-                            tipo = get_attr(se, "type")
+                            tipo = se.get("@gxsi:type")
                             if tipo == "tabela":
-                                linhas = ensure_list((se.get("linhas") or {}).get("linha"))
+                                linhas = (se.get("linhas") or {}).get("linha", [])
+                                if not isinstance(linhas, list):
+                                    linhas = [linhas] if linhas else []
                                 tabela = []
                                 for linha in linhas:
-                                    celulas = ensure_list((linha.get("celulas") or {}).get("celula"))
+                                    celulas = (linha.get("celulas") or {}).get("celula", [])
+                                    if not isinstance(celulas, list):
+                                        celulas = [celulas] if celulas else []
                                     linha_lista = []
                                     for cel in celulas:
-                                        elementos_cel = ensure_list((cel.get("elementos") or {}).get("elemento"))
+                                        elementos_cel = (cel.get("elementos") or {}).get("elemento", [])
+                                        if not isinstance(elementos_cel, list):
+                                            elementos_cel = [elementos_cel] if elementos_cel else []
                                         campos = []
                                         for c in elementos_cel:
-                                            c_tipo = get_attr(c, "type") or "texto"
-                                            dominio_key = c.get("@dominio")
-                                            dominios_campo = dom_mapa.get(dominio_key, []) if dominio_key else []
                                             c_info = {
-                                                "tipo": c_tipo,
+                                                "tipo": c.get("@gxsi:type", "texto"),
                                                 "titulo": c.get("@titulo", ""),
                                                 "descricao": c.get("@descricao", ""),
-                                                "obrigatorio": (c.get("@obrigatorio", "false") == "true"),
+                                                "obrigatorio": c.get("@obrigatorio", "false") == "true",
                                                 "largura": int(c.get("@largura", "450")),
                                                 "altura": int(c.get("@altura", "0")) if c.get("@altura") else None,
-                                                "colunas": int(c.get("@colunas", "1")),
-                                                "in_tabela": True,
-                                                "dominios": dominios_campo,
-                                                "valor": c.get("@valor")
+                                                "colunas": int(c.get("@colunas", "1"))
                                             }
                                             campos.append(c_info)
                                         linha_lista.append(campos)
                                     tabela.append(linha_lista)
                                 sec["elementos"].append({"tipo_elemento": "tabela", "tabela": tabela})
                             else:
-                                dominio_key = se.get("@dominio")
-                                dominios_campo = dom_mapa.get(dominio_key, []) if dominio_key else []
                                 c_info = {
-                                    "tipo": tipo or "texto",
+                                    "tipo": tipo,
                                     "titulo": se.get("@titulo", ""),
                                     "descricao": se.get("@descricao", ""),
-                                    "obrigatorio": (se.get("@obrigatorio", "false") == "true"),
+                                    "obrigatorio": se.get("@obrigatorio", "false") == "true",
                                     "largura": int(se.get("@largura", "450")),
                                     "altura": int(se.get("@altura", "0")) if se.get("@altura") else None,
                                     "colunas": int(se.get("@colunas", "1")),
                                     "in_tabela": False,
-                                    "dominios": dominios_campo,
-                                    "valor": se.get("@valor")
+                                    "dominios": []
                                 }
                                 sec["elementos"].append({"tipo_elemento": "campo", "campo": c_info})
                         formulario_dict["secoes"].append(sec)
 
                 st.session_state.formulario = formulario_dict
                 st.success("Arquivo importado com sucesso!")
+
+                # Pré-visualização do formulário (apenas na aba Importar)
+                preview_formulario(st.session_state.formulario, context_key="import")
             else:
                 st.error("Arquivo não contém estrutura válida de formulário.")
         except Exception as e:
             st.error(f"Erro ao importar arquivo: {str(e)}")
+
+def reorder_elementos(elementos, idx, direcao):
+    novo_idx = idx + direcao
+    if novo_idx < 0 or novo_idx >= len(elementos):
+        return elementos
+    elementos[idx], elementos[novo_idx] = elementos[novo_idx], elementos[idx]
+    return elementos
