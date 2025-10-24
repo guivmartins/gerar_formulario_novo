@@ -7,17 +7,11 @@ st.set_page_config(page_title="Construtor de Formulários Completo 8.0", layout=
 
 # Estado inicial
 if "formulario" not in st.session_state:
-    st.session_state.formulario = {
-        "nome": "",
-        "versao": "1.0",
-        "secoes": [],
-        "dominios": []
-    }
+    st.session_state.formulario = {"nome": "", "versao": "1.0", "secoes": [], "dominios": []}
 if "nova_secao" not in st.session_state:
     st.session_state.nova_secao = {"titulo": "", "largura": 500, "elementos": []}
 if "editing" not in st.session_state:
-    # editing = {"s": s_idx, "i": i} quando em edição de item na seção s_idx, índice i
-    st.session_state.editing = None
+    st.session_state.editing = None  # {"s": s_idx, "i": i}
 
 TIPOS_ELEMENTOS = [
     "texto", "texto-area", "data", "moeda", "cpf", "cnpj", "email",
@@ -179,7 +173,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                 elif tipo == "data":
                     st.date_input(campo.get("titulo", ""), key=key_prev)
                 elif tipo == "grupoCheck":
-                    st.markdown(f"**{campo.get('titulo', '')}**")
+                    st.markdown(campo.get("titulo", ""))
                     for i, dom in enumerate(campo.get("dominios", [])):
                         st.checkbox(dom.get("descricao", ""), key=f"{key_prev}_{i}")
                 elif tipo in ["comboBox", "comboFiltro"]:
@@ -189,16 +183,14 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                 elif tipo == "check":
                     st.checkbox(campo.get("titulo", ""), key=key_prev)
                 elif tipo == "rotulo":
-                    conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
-                    st.markdown(f"**{conteudo}**")
+                    st.markdown(campo.get("valor") or campo.get("descricao") or campo.get("titulo") or "")
                 elif tipo == "paragrafo":
                     conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
-                    conteudo = str(conteudo).replace("\\n", "\n")
-                    st.markdown(conteudo)
+                    st.markdown(str(conteudo).replace("\\n", "\n"))
 
             elif item["tipo_elemento"] == "tabela":
                 tabela = item["tabela"]
-                st.markdown("**Tabela**")
+                st.markdown("Tabela")
                 for linha_idx, linha in enumerate(tabela):
                     cols = st.columns(len(linha))
                     for c_idx, celula in enumerate(linha):
@@ -213,7 +205,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                                 elif tipo == "data":
                                     st.date_input(campo.get("titulo", ""), key=key_prev)
                                 elif tipo == "grupoCheck":
-                                    st.markdown(f"**{campo.get('titulo', '')}**")
+                                    st.markdown(campo.get("titulo", ""))
                                     for i, dom in enumerate(campo.get("dominios", [])):
                                         st.checkbox(dom.get("descricao", ""), key=f"{key_prev}_{i}")
                                 elif tipo in ["comboBox", "comboFiltro"]:
@@ -223,11 +215,10 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                                 elif tipo == "check":
                                     st.checkbox(campo.get("titulo", ""), key=key_prev)
                                 elif tipo == "rotulo":
-                                    st.markdown(f"**{campo.get('valor') or campo.get('descricao') or campo.get('titulo') or ''}**")
+                                    st.markdown(campo.get("valor") or campo.get("descricao") or campo.get("titulo") or "")
                                 elif tipo == "paragrafo":
                                     conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
-                                    conteudo = str(conteudo).replace("\\n", "\n")
-                                    st.markdown(conteudo)
+                                    st.markdown(str(conteudo).replace("\\n", "\n"))
 
 def adicionar_campo_secao(secao, campo, linha_num=None):
     if campo.get("in_tabela"):
@@ -289,6 +280,45 @@ def edit_campo_ui(campo: dict, key_prefix: str):
                 dominios[i]["valor"] = st.text_input(f"Valor {i+1}", value=dominios[i].get("valor",""), key=f"{key_prefix}_dom_val_{i}")
         campo["dominios"] = dominios
 
+def as_list(x):
+    if x is None:
+        return []
+    return x if isinstance(x, list) else [x]
+
+def normalize_formulario(formulario_dict: dict):
+    # Garante chaves padrão para toda a árvore, evitando problemas no Construtor
+    for sec in formulario_dict.get("secoes", []):
+        sec.setdefault("titulo", "")
+        sec.setdefault("largura", 500)
+        sec.setdefault("elementos", [])
+        for item in sec["elementos"]:
+            if item.get("tipo_elemento") == "campo":
+                c = item.setdefault("campo", {})
+                c.setdefault("tipo", "texto")
+                c.setdefault("titulo", "")
+                c.setdefault("descricao", c.get("titulo", ""))
+                c.setdefault("obrigatorio", False)
+                c.setdefault("largura", 450)
+                c.setdefault("altura", None)
+                c.setdefault("colunas", 1)
+                c.setdefault("in_tabela", False)
+                c.setdefault("dominios", [])
+                c.setdefault("valor", "")
+            elif item.get("tipo_elemento") == "tabela":
+                tabela = item.setdefault("tabela", [])
+                for linha in tabela:
+                    for celula in linha:
+                        for c in celula:
+                            c.setdefault("tipo", "texto")
+                            c.setdefault("titulo", "")
+                            c.setdefault("descricao", c.get("titulo", ""))
+                            c.setdefault("obrigatorio", False)
+                            c.setdefault("largura", 450)
+                            c.setdefault("altura", None)
+                            c.setdefault("colunas", 1)
+                            c.setdefault("dominios", [])
+                            c.setdefault("valor", "")
+
 aba = st.tabs(["Construtor", "Importar arquivo"])
 
 # ------------------- CONSTRUTOR -------------------
@@ -312,34 +342,33 @@ with aba[0]:
 
         for s_idx, sec in enumerate(st.session_state.formulario.get("secoes", [])):
             with st.expander(f"📁 Seção: {sec.get('titulo','(sem título)')}", expanded=False):
-                # Editar dados da seção
                 sec["titulo"] = st.text_input("Título da Seção (editar)", value=sec.get("titulo",""), key=f"sec_tit_{s_idx}")
                 sec["largura"] = st.number_input("Largura da Seção (editar)", min_value=100, value=int(sec.get("largura",500)), step=10, key=f"sec_larg_{s_idx}")
-                top1, top2 = st.columns([1,1])
-                with top1:
-                    if st.button(f"Salvar Seção", key=f"save_sec_{s_idx}"):
+                t1, t2 = st.columns([1,1])
+                with t1:
+                    if st.button("Salvar Seção", key=f"save_sec_{s_idx}"):
                         st.rerun()
-                with top2:
-                    if st.button(f"🗑️ Excluir Seção", key=f"del_sec_{s_idx}"):
+                with t2:
+                    if st.button("🗑️ Excluir Seção", key=f"del_sec_{s_idx}"):
                         st.session_state.formulario["secoes"].pop(s_idx)
                         st.rerun()
 
                 st.markdown("### Elementos na Seção (ordem e edição)")
                 elementos = sec.get("elementos", [])
                 for i, item in enumerate(list(elementos)):
-                    col_ord1, col_ord2, col_main, col_btns = st.columns([1, 1, 8, 2])
-                    with col_ord1:
+                    c1, c2, c3, c4 = st.columns([1,1,8,2])
+                    with c1:
                         if st.button("⬆️", key=f"up_{s_idx}_{i}"):
                             sec["elementos"] = reorder_elementos(elementos, i, -1)
                             st.rerun()
-                    with col_ord2:
+                    with c2:
                         if st.button("⬇️", key=f"down_{s_idx}_{i}"):
                             sec["elementos"] = reorder_elementos(elementos, i, 1)
                             st.rerun()
-                    with col_main:
+                    with c3:
                         if item["tipo_elemento"] == "campo":
                             st.text(f"Campo: {item['campo'].get('titulo', '')} ({item['campo'].get('tipo','')})")
-                        elif item["tipo_elemento"] == "tabela":
+                        else:
                             st.markdown("Tabela:")
                             for l_idx, linha in enumerate(item["tabela"]):
                                 cel_textos = []
@@ -347,7 +376,7 @@ with aba[0]:
                                     titulos = ", ".join([c.get("titulo", "") for c in celula])
                                     cel_textos.append(f"Celula {c_idx+1}: {titulos}")
                                 st.text(f"Linha {l_idx+1}: " + " | ".join(cel_textos))
-                    with col_btns:
+                    with c4:
                         if st.button("✏️ Editar", key=f"edit_{s_idx}_{i}"):
                             st.session_state.editing = {"s": s_idx, "i": i}
                             st.rerun()
@@ -355,24 +384,23 @@ with aba[0]:
                             elementos.pop(i)
                             st.rerun()
 
-                    # UI de edição estável por item selecionado
+                    # Editor estável
                     if st.session_state.editing and st.session_state.editing.get("s") == s_idx and st.session_state.editing.get("i") == i:
                         with st.container():
                             if item["tipo_elemento"] == "campo":
                                 campo = item["campo"]
                                 st.write("Editar campo")
                                 edit_campo_ui(campo, key_prefix=f"editcampo_{s_idx}_{i}")
-                                c1, c2 = st.columns(2)
-                                with c1:
+                                b1, b2 = st.columns(2)
+                                with b1:
                                     if st.button("Salvar", key=f"save_campo_{s_idx}_{i}"):
                                         st.session_state.editing = None
                                         st.rerun()
-                                with c2:
+                                with b2:
                                     if st.button("Cancelar", key=f"cancel_campo_{s_idx}_{i}"):
                                         st.session_state.editing = None
                                         st.rerun()
-
-                            elif item["tipo_elemento"] == "tabela":
+                            else:
                                 st.write("Editar tabela")
                                 tabela = item["tabela"]
                                 for l_idx, linha in enumerate(tabela):
@@ -382,17 +410,17 @@ with aba[0]:
                                             for f_idx, campo in enumerate(celula):
                                                 st.markdown(f"Campo {f_idx+1} — {campo.get('tipo','')}")
                                                 edit_campo_ui(campo, key_prefix=f"edittab_{s_idx}_{i}_{l_idx}_{c_idx}_{f_idx}")
-                                c1, c2 = st.columns(2)
-                                with c1:
+                                b1, b2 = st.columns(2)
+                                with b1:
                                     if st.button("Salvar tabela", key=f"save_tab_{s_idx}_{i}"):
                                         st.session_state.editing = None
                                         st.rerun()
-                                with c2:
+                                with b2:
                                     if st.button("Cancelar", key=f"cancel_tab_{s_idx}_{i}"):
                                         st.session_state.editing = None
                                         st.rerun()
 
-        # Adição de novos campos
+        # Adicionar novos campos
         if st.session_state.formulario.get("secoes"):
             secao_opcoes = [sec.get("titulo", f"Seção {i}") for i, sec in enumerate(st.session_state.formulario["secoes"])]
             indice_selecao = st.selectbox("Selecione a Seção para adicionar um campo", options=range(len(secao_opcoes)), format_func=lambda i: secao_opcoes[i])
@@ -403,13 +431,9 @@ with aba[0]:
                 titulo = st.text_input("Título do Campo", key=f"title_add_{indice_selecao}")
                 obrig = st.checkbox("Obrigatório", key=f"obrig_add_{indice_selecao}")
                 in_tabela = st.checkbox("Dentro da tabela?", key=f"tabela_add_{indice_selecao}")
-                linha_tabela = None
-                if in_tabela:
-                    linha_tabela = st.number_input("Número da linha na tabela", min_value=1, step=1, key=f"linha_add_{indice_selecao}")
+                linha_tabela = st.number_input("Número da linha na tabela", min_value=1, step=1, key=f"linha_add_{indice_selecao}") if in_tabela else None
                 largura = st.number_input("Largura (px)", min_value=100, value=450, step=10, key=f"larg_add_{indice_selecao}")
-                altura = None
-                if tipo == "texto-area":
-                    altura = st.number_input("Altura", min_value=50, value=100, step=10, key=f"alt_add_{indice_selecao}")
+                altura = st.number_input("Altura", min_value=50, value=100, step=10, key=f"alt_add_{indice_selecao}") if tipo == "texto-area" else None
                 colunas = 1
                 dominios_temp = []
                 if tipo in LIST_TYPES:
@@ -425,16 +449,9 @@ with aba[0]:
                             dominios_temp.append({"descricao": desc, "valor": val or (desc.upper() if desc else "")})
                 if st.button("Adicionar Campo", key=f"add_field_{indice_selecao}"):
                     campo = {
-                        "titulo": titulo,
-                        "descricao": titulo,
-                        "tipo": tipo,
-                        "obrigatorio": obrig,
-                        "largura": largura,
-                        "altura": altura,
-                        "colunas": colunas,
-                        "in_tabela": in_tabela,
-                        "dominios": dominios_temp,
-                        "valor": ""
+                        "titulo": titulo, "descricao": titulo, "tipo": tipo, "obrigatorio": obrig,
+                        "largura": largura, "altura": altura, "colunas": colunas, "in_tabela": in_tabela,
+                        "dominios": dominios_temp, "valor": ""
                     }
                     adicionar_campo_secao(secao_atual, campo, linha_tabela)
                     st.rerun()
@@ -443,8 +460,7 @@ with aba[0]:
         preview_formulario(st.session_state.formulario, context_key="builder")
         st.markdown("---")
         st.subheader("📑 Pré-visualização XML")
-        xml_preview = gerar_xml(st.session_state.formulario)
-        st.code(xml_preview, language="xml")
+        st.code(gerar_xml(st.session_state.formulario), language="xml")
 
 # ------------------- IMPORTAR -------------------
 with aba[1]:
@@ -453,12 +469,7 @@ with aba[1]:
     if uploaded_file is not None:
         try:
             content = uploaded_file.read()
-            doc = xmltodict.parse(content)
-
-            def as_list(x):
-                if x is None:
-                    return []
-                return x if isinstance(x, list) else [x]
+            doc = xmltodict.parse(content)  # atributos ficam com prefixo '@' [xmltodict] [web:2]
 
             form_data = doc.get("gxsi:formulario") or doc.get("formulario")
             if form_data is None:
@@ -472,40 +483,41 @@ with aba[1]:
                 }
 
                 # Mapa de domínios
+                def as_list_local(x):
+                    if x is None:
+                        return []
+                    return x if isinstance(x, list) else [x]
+
                 dominios_map = {}
                 dom_root = form_data.get("dominios") or {}
-                for dom in as_list(dom_root.get("dominio")):
+                for dom in as_list_local(dom_root.get("dominio")):
                     chave = dom.get("@chave") or ""
                     itens = []
-                    for it in as_list((dom.get("itens") or {}).get("item")):
-                        itens.append({
-                            "descricao": it.get("@descricao", ""),
-                            "valor": it.get("@valor", "")
-                        })
+                    for it in as_list_local((dom.get("itens") or {}).get("item")):
+                        itens.append({"descricao": it.get("@descricao", ""), "valor": it.get("@valor", "")})
                     if chave:
                         dominios_map[chave] = itens
                         formulario_dict["dominios"].append({"chave": chave, "itens": itens})
 
                 # Seções e elementos
-                for elem in as_list((form_data.get("elementos") or {}).get("elemento")):
+                for elem in as_list_local((form_data.get("elementos") or {}).get("elemento")):
                     if elem.get("@gxsi:type") == "seccao":
                         sec = {
                             "titulo": elem.get("@titulo", ""),
                             "largura": int(elem.get("@largura", "500")),
                             "elementos": []
                         }
-                        for se in as_list((elem.get("elementos") or {}).get("elemento")):
+                        for se in as_list_local((elem.get("elementos") or {}).get("elemento")):
                             tipo = se.get("@gxsi:type")
                             if tipo == "tabela":
                                 tabela = []
-                                for linha in as_list((se.get("linhas") or {}).get("linha")):
+                                for linha in as_list_local((se.get("linhas") or {}).get("linha")):
                                     linha_lista = []
-                                    for cel in as_list((linha.get("celulas") or {}).get("celula")):
+                                    for cel in as_list_local((linha.get("celulas") or {}).get("celula")):
                                         campos = []
-                                        for c in as_list((cel.get("elementos") or {}).get("elemento")):
+                                        for c in as_list_local((cel.get("elementos") or {}).get("elemento")):
                                             ctipo = c.get("@gxsi:type", "texto")
                                             dom_key = c.get("@dominio")
-                                            colunas = int(c.get("@colunas", "1"))
                                             c_info = {
                                                 "tipo": ctipo,
                                                 "titulo": c.get("@titulo", ""),
@@ -513,7 +525,7 @@ with aba[1]:
                                                 "obrigatorio": c.get("@obrigatorio", "false") == "true",
                                                 "largura": int(c.get("@largura", "450")),
                                                 "altura": int(c.get("@altura", "0")) if c.get("@altura") else None,
-                                                "colunas": colunas,
+                                                "colunas": int(c.get("@colunas", "1")),
                                             }
                                             if ctipo in LIST_TYPES and dom_key:
                                                 c_info["dominio_chave"] = dom_key
@@ -526,7 +538,6 @@ with aba[1]:
                                 sec["elementos"].append({"tipo_elemento": "tabela", "tabela": tabela})
                             else:
                                 dom_key = se.get("@dominio")
-                                colunas = int(se.get("@colunas", "1"))
                                 c_info = {
                                     "tipo": tipo,
                                     "titulo": se.get("@titulo", ""),
@@ -534,7 +545,7 @@ with aba[1]:
                                     "obrigatorio": se.get("@obrigatorio", "false") == "true",
                                     "largura": int(se.get("@largura", "450")),
                                     "altura": int(se.get("@altura", "0")) if se.get("@altura") else None,
-                                    "colunas": colunas,
+                                    "colunas": int(se.get("@colunas", "1")),
                                     "in_tabela": False
                                 }
                                 if tipo in LIST_TYPES and dom_key:
@@ -545,7 +556,10 @@ with aba[1]:
                                 sec["elementos"].append({"tipo_elemento": "campo", "campo": c_info})
                         formulario_dict["secoes"].append(sec)
 
+                # Normaliza antes de carregar no estado (garante edição no Construtor)
+                normalize_formulario(formulario_dict)  # garante chaves esperadas na UI
                 st.session_state.formulario = formulario_dict
+                st.session_state.editing = None  # limpa seleção de edição
                 st.success("Arquivo importado com sucesso!")
 
                 # Pré-visualização do formulário (apenas na aba Importar)
