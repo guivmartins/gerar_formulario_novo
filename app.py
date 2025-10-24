@@ -11,10 +11,13 @@ if "formulario" not in st.session_state:
         "nome": "",
         "versao": "1.0",
         "secoes": [],
-        "dominios": []  # opcional, mantido para referência
+        "dominios": []
     }
 if "nova_secao" not in st.session_state:
     st.session_state.nova_secao = {"titulo": "", "largura": 500, "elementos": []}
+if "editing" not in st.session_state:
+    # editing = {"s": s_idx, "i": i} quando em edição de item na seção s_idx, índice i
+    st.session_state.editing = None
 
 TIPOS_ELEMENTOS = [
     "texto", "texto-area", "data", "moeda", "cpf", "cnpj", "email",
@@ -176,7 +179,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                 elif tipo == "data":
                     st.date_input(campo.get("titulo", ""), key=key_prev)
                 elif tipo == "grupoCheck":
-                    st.markdown(campo.get("titulo", ""))
+                    st.markdown(f"**{campo.get('titulo', '')}**")
                     for i, dom in enumerate(campo.get("dominios", [])):
                         st.checkbox(dom.get("descricao", ""), key=f"{key_prev}_{i}")
                 elif tipo in ["comboBox", "comboFiltro"]:
@@ -187,7 +190,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                     st.checkbox(campo.get("titulo", ""), key=key_prev)
                 elif tipo == "rotulo":
                     conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
-                    st.markdown(conteudo)
+                    st.markdown(f"**{conteudo}**")
                 elif tipo == "paragrafo":
                     conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
                     conteudo = str(conteudo).replace("\\n", "\n")
@@ -195,7 +198,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
 
             elif item["tipo_elemento"] == "tabela":
                 tabela = item["tabela"]
-                st.markdown("Tabela")
+                st.markdown("**Tabela**")
                 for linha_idx, linha in enumerate(tabela):
                     cols = st.columns(len(linha))
                     for c_idx, celula in enumerate(linha):
@@ -210,7 +213,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                                 elif tipo == "data":
                                     st.date_input(campo.get("titulo", ""), key=key_prev)
                                 elif tipo == "grupoCheck":
-                                    st.markdown(campo.get("titulo", ""))
+                                    st.markdown(f"**{campo.get('titulo', '')}**")
                                     for i, dom in enumerate(campo.get("dominios", [])):
                                         st.checkbox(dom.get("descricao", ""), key=f"{key_prev}_{i}")
                                 elif tipo in ["comboBox", "comboFiltro"]:
@@ -220,7 +223,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                                 elif tipo == "check":
                                     st.checkbox(campo.get("titulo", ""), key=key_prev)
                                 elif tipo == "rotulo":
-                                    st.markdown(campo.get("valor") or campo.get("descricao") or campo.get("titulo") or "")
+                                    st.markdown(f"**{campo.get('valor') or campo.get('descricao') or campo.get('titulo') or ''}**")
                                 elif tipo == "paragrafo":
                                     conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
                                     conteudo = str(conteudo).replace("\\n", "\n")
@@ -309,16 +312,16 @@ with aba[0]:
 
         for s_idx, sec in enumerate(st.session_state.formulario.get("secoes", [])):
             with st.expander(f"📁 Seção: {sec.get('titulo','(sem título)')}", expanded=False):
-                st.write(f"Largura: {sec.get('largura', 500)}")
+                # Editar dados da seção
+                sec["titulo"] = st.text_input("Título da Seção (editar)", value=sec.get("titulo",""), key=f"sec_tit_{s_idx}")
+                sec["largura"] = st.number_input("Largura da Seção (editar)", min_value=100, value=int(sec.get("largura",500)), step=10, key=f"sec_larg_{s_idx}")
                 top1, top2 = st.columns([1,1])
                 with top1:
-                    if st.button(f"🗑️ Excluir Seção", key=f"del_sec_{s_idx}"):
-                        st.session_state.formulario["secoes"].pop(s_idx)
+                    if st.button(f"Salvar Seção", key=f"save_sec_{s_idx}"):
                         st.rerun()
                 with top2:
-                    nova_larg = st.number_input("Largura da Seção (editar)", min_value=100, value=int(sec.get("largura",500)), step=10, key=f"larg_sec_{s_idx}")
-                    if st.button("Salvar largura da Seção", key=f"save_larg_sec_{s_idx}"):
-                        sec["largura"] = int(nova_larg)
+                    if st.button(f"🗑️ Excluir Seção", key=f"del_sec_{s_idx}"):
+                        st.session_state.formulario["secoes"].pop(s_idx)
                         st.rerun()
 
                 st.markdown("### Elementos na Seção (ordem e edição)")
@@ -346,13 +349,15 @@ with aba[0]:
                                 st.text(f"Linha {l_idx+1}: " + " | ".join(cel_textos))
                     with col_btns:
                         if st.button("✏️ Editar", key=f"edit_{s_idx}_{i}"):
-                            st.session_state[f"editing_{s_idx}_{i}"] = True
+                            st.session_state.editing = {"s": s_idx, "i": i}
+                            st.rerun()
                         if st.button("❌", key=f"del_{s_idx}_{i}"):
                             elementos.pop(i)
                             st.rerun()
 
-                    if st.session_state.get(f"editing_{s_idx}_{i}", False):
-                        with st.container(border=True):
+                    # UI de edição estável por item selecionado
+                    if st.session_state.editing and st.session_state.editing.get("s") == s_idx and st.session_state.editing.get("i") == i:
+                        with st.container():
                             if item["tipo_elemento"] == "campo":
                                 campo = item["campo"]
                                 st.write("Editar campo")
@@ -360,11 +365,11 @@ with aba[0]:
                                 c1, c2 = st.columns(2)
                                 with c1:
                                     if st.button("Salvar", key=f"save_campo_{s_idx}_{i}"):
-                                        st.session_state[f"editing_{s_idx}_{i}"] = False
+                                        st.session_state.editing = None
                                         st.rerun()
                                 with c2:
                                     if st.button("Cancelar", key=f"cancel_campo_{s_idx}_{i}"):
-                                        st.session_state[f"editing_{s_idx}_{i}"] = False
+                                        st.session_state.editing = None
                                         st.rerun()
 
                             elif item["tipo_elemento"] == "tabela":
@@ -380,11 +385,11 @@ with aba[0]:
                                 c1, c2 = st.columns(2)
                                 with c1:
                                     if st.button("Salvar tabela", key=f"save_tab_{s_idx}_{i}"):
-                                        st.session_state[f"editing_{s_idx}_{i}"] = False
+                                        st.session_state.editing = None
                                         st.rerun()
                                 with c2:
                                     if st.button("Cancelar", key=f"cancel_tab_{s_idx}_{i}"):
-                                        st.session_state[f"editing_{s_idx}_{i}"] = False
+                                        st.session_state.editing = None
                                         st.rerun()
 
         # Adição de novos campos
@@ -450,7 +455,6 @@ with aba[1]:
             content = uploaded_file.read()
             doc = xmltodict.parse(content)
 
-            # Função auxiliar para normalizar para lista
             def as_list(x):
                 if x is None:
                     return []
@@ -467,7 +471,7 @@ with aba[1]:
                     "dominios": []
                 }
 
-                # Mapa de domínios: chave -> lista de itens {descricao, valor}
+                # Mapa de domínios
                 dominios_map = {}
                 dom_root = form_data.get("dominios") or {}
                 for dom in as_list(dom_root.get("dominio")):
@@ -514,6 +518,8 @@ with aba[1]:
                                             if ctipo in LIST_TYPES and dom_key:
                                                 c_info["dominio_chave"] = dom_key
                                                 c_info["dominios"] = list(dominios_map.get(dom_key, []))
+                                            else:
+                                                c_info["dominios"] = []
                                             campos.append(c_info)
                                         linha_lista.append(campos)
                                     tabela.append(linha_lista)
@@ -546,11 +552,3 @@ with aba[1]:
                 preview_formulario(st.session_state.formulario, context_key="import")
         except Exception as e:
             st.error(f"Erro ao importar arquivo: {str(e)}")
-
-# Evitar shadowing e duplicidade
-def reorder_elementos(elementos, idx, direcao):
-    novo_idx = idx + direcao
-    if novo_idx < 0 or novo_idx >= len(elementos):
-        return elementos
-    elementos[idx], elementos[novo_idx] = elementos[novo_idx], elementos[idx]
-    return elementos
