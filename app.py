@@ -11,7 +11,7 @@ if "formulario" not in st.session_state:
         "nome": "",
         "versao": "1.0",
         "secoes": [],
-        "dominios": []
+        "dominios": []  # opcional, mantido para referência
     }
 if "nova_secao" not in st.session_state:
     st.session_state.nova_secao = {"titulo": "", "largura": 500, "elementos": []}
@@ -21,7 +21,6 @@ TIPOS_ELEMENTOS = [
     "telefone", "check", "comboBox", "comboFiltro", "grupoRadio",
     "grupoCheck", "paragrafo", "rotulo"
 ]
-
 LIST_TYPES = {"comboBox", "comboFiltro", "grupoRadio", "grupoCheck"}
 
 def _prettify_xml(root: ET.Element) -> str:
@@ -36,26 +35,25 @@ def gerar_xml(formulario: dict) -> str:
         "versao": formulario.get("versao", "1.0")
     })
     elementos = ET.SubElement(root, "elementos")
+
+    dom_adicionados = set()
     dominios_global = ET.Element("dominios")
 
-    # evitar duplicidade de domínio por chave
-    dom_keys = set()
-
-    def add_dominio(chave_dom: str, itens: list):
-        if not chave_dom or chave_dom in dom_keys:
+    def ensure_dominio(chave_dom: str, itens: list):
+        if not chave_dom or chave_dom in dom_adicionados:
             return
-        dom_el = ET.SubElement(dominios_global, "dominio", {
+        dominio_el = ET.SubElement(dominios_global, "dominio", {
             "gxsi:type": "dominioEstatico",
             "chave": chave_dom
         })
-        itens_el = ET.SubElement(dom_el, "itens")
+        itens_el = ET.SubElement(dominio_el, "itens")
         for d in itens or []:
             ET.SubElement(itens_el, "item", {
                 "gxsi:type": "dominioItemValor",
                 "descricao": d.get("descricao", ""),
                 "valor": d.get("valor", "")
             })
-        dom_keys.add(chave_dom)
+        dom_adicionados.add(chave_dom)
 
     for sec in formulario.get("secoes", []):
         sec_el = ET.SubElement(elementos, "elemento", {
@@ -81,8 +79,8 @@ def gerar_xml(formulario: dict) -> str:
                     })
                     continue
 
-                if tipo in LIST_TYPES and campo.get("dominios"):
-                    chave_dom = titulo.replace(" ", "")[:20].upper()
+                if tipo in LIST_TYPES:
+                    chave_dom = campo.get("dominio_chave") or titulo.replace(" ", "")[:20].upper()
                     attrs = {
                         "gxsi:type": tipo,
                         "titulo": titulo,
@@ -93,7 +91,7 @@ def gerar_xml(formulario: dict) -> str:
                         "dominio": chave_dom
                     }
                     ET.SubElement(subelems, "elemento", attrs)
-                    add_dominio(chave_dom, campo.get("dominios", []))
+                    ensure_dominio(chave_dom, campo.get("dominios", []))
                     continue
 
                 attrs = {
@@ -131,8 +129,8 @@ def gerar_xml(formulario: dict) -> str:
                                 })
                                 continue
 
-                            if tipo in LIST_TYPES and campo.get("dominios"):
-                                chave_dom = titulo.replace(" ", "")[:20].upper()
+                            if tipo in LIST_TYPES:
+                                chave_dom = campo.get("dominio_chave") or titulo.replace(" ", "")[:20].upper()
                                 attrs = {
                                     "gxsi:type": tipo,
                                     "titulo": titulo,
@@ -143,7 +141,7 @@ def gerar_xml(formulario: dict) -> str:
                                     "dominio": chave_dom
                                 }
                                 ET.SubElement(elementos_tag, "elemento", attrs)
-                                add_dominio(chave_dom, campo.get("dominios", []))
+                                ensure_dominio(chave_dom, campo.get("dominios", []))
                                 continue
 
                             attrs = {
@@ -178,7 +176,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                 elif tipo == "data":
                     st.date_input(campo.get("titulo", ""), key=key_prev)
                 elif tipo == "grupoCheck":
-                    st.markdown(f"**{campo.get('titulo', '')}**")
+                    st.markdown(campo.get("titulo", ""))
                     for i, dom in enumerate(campo.get("dominios", [])):
                         st.checkbox(dom.get("descricao", ""), key=f"{key_prev}_{i}")
                 elif tipo in ["comboBox", "comboFiltro"]:
@@ -189,7 +187,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                     st.checkbox(campo.get("titulo", ""), key=key_prev)
                 elif tipo == "rotulo":
                     conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
-                    st.markdown(f"**{conteudo}**")
+                    st.markdown(conteudo)
                 elif tipo == "paragrafo":
                     conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
                     conteudo = str(conteudo).replace("\\n", "\n")
@@ -197,7 +195,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
 
             elif item["tipo_elemento"] == "tabela":
                 tabela = item["tabela"]
-                st.markdown("**Tabela**")
+                st.markdown("Tabela")
                 for linha_idx, linha in enumerate(tabela):
                     cols = st.columns(len(linha))
                     for c_idx, celula in enumerate(linha):
@@ -212,7 +210,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                                 elif tipo == "data":
                                     st.date_input(campo.get("titulo", ""), key=key_prev)
                                 elif tipo == "grupoCheck":
-                                    st.markdown(f"**{campo.get('titulo', '')}**")
+                                    st.markdown(campo.get("titulo", ""))
                                     for i, dom in enumerate(campo.get("dominios", [])):
                                         st.checkbox(dom.get("descricao", ""), key=f"{key_prev}_{i}")
                                 elif tipo in ["comboBox", "comboFiltro"]:
@@ -222,7 +220,7 @@ def preview_formulario(formulario: dict, context_key: str = "main"):
                                 elif tipo == "check":
                                     st.checkbox(campo.get("titulo", ""), key=key_prev)
                                 elif tipo == "rotulo":
-                                    st.markdown(f"**{campo.get('valor') or campo.get('descricao') or campo.get('titulo') or ''}**")
+                                    st.markdown(campo.get("valor") or campo.get("descricao") or campo.get("titulo") or "")
                                 elif tipo == "paragrafo":
                                     conteudo = campo.get("valor") or campo.get("descricao") or campo.get("titulo") or ""
                                     conteudo = str(conteudo).replace("\\n", "\n")
@@ -266,24 +264,20 @@ def reorder_elementos(elementos, idx, direcao):
     return elementos
 
 def edit_campo_ui(campo: dict, key_prefix: str):
-    # campos básicos
     campo["titulo"] = st.text_input("Título", value=campo.get("titulo", ""), key=f"{key_prefix}_titulo")
     campo["descricao"] = st.text_input("Descrição", value=campo.get("descricao", campo.get("titulo","")), key=f"{key_prefix}_desc")
     campo["obrigatorio"] = st.checkbox("Obrigatório", value=bool(campo.get("obrigatorio", False)), key=f"{key_prefix}_obrig")
     campo["largura"] = st.number_input("Largura (px)", min_value=100, value=int(campo.get("largura", 450)), step=10, key=f"{key_prefix}_larg")
     if campo.get("tipo") == "texto-area":
         campo["altura"] = st.number_input("Altura", min_value=50, value=int(campo.get("altura") or 100), step=10, key=f"{key_prefix}_alt")
-    # listas
     if campo.get("tipo") in LIST_TYPES:
         campo["colunas"] = st.number_input("Colunas", min_value=1, max_value=5, value=int(campo.get("colunas", 1)), key=f"{key_prefix}_cols")
         dominios = campo.get("dominios") or []
         qtd = st.number_input("Qtd. de Itens no Domínio", min_value=0, max_value=100, value=len(dominios), key=f"{key_prefix}_dom_qtd")
-        # ajustar tamanho
         if len(dominios) < qtd:
             dominios.extend([{"descricao": "", "valor": ""} for _ in range(qtd - len(dominios))])
         elif len(dominios) > qtd:
             dominios = dominios[:qtd]
-        # editar itens
         for i in range(qtd):
             c1, c2 = st.columns(2)
             with c1:
@@ -315,7 +309,7 @@ with aba[0]:
 
         for s_idx, sec in enumerate(st.session_state.formulario.get("secoes", [])):
             with st.expander(f"📁 Seção: {sec.get('titulo','(sem título)')}", expanded=False):
-                st.write(f"**Largura:** {sec.get('largura', 500)}")
+                st.write(f"Largura: {sec.get('largura', 500)}")
                 top1, top2 = st.columns([1,1])
                 with top1:
                     if st.button(f"🗑️ Excluir Seção", key=f"del_sec_{s_idx}"):
@@ -343,7 +337,7 @@ with aba[0]:
                         if item["tipo_elemento"] == "campo":
                             st.text(f"Campo: {item['campo'].get('titulo', '')} ({item['campo'].get('tipo','')})")
                         elif item["tipo_elemento"] == "tabela":
-                            st.markdown("**Tabela:**")
+                            st.markdown("Tabela:")
                             for l_idx, linha in enumerate(item["tabela"]):
                                 cel_textos = []
                                 for c_idx, celula in enumerate(linha):
@@ -357,7 +351,6 @@ with aba[0]:
                             elementos.pop(i)
                             st.rerun()
 
-                    # UI de edição
                     if st.session_state.get(f"editing_{s_idx}_{i}", False):
                         with st.container(border=True):
                             if item["tipo_elemento"] == "campo":
@@ -455,61 +448,79 @@ with aba[1]:
     if uploaded_file is not None:
         try:
             content = uploaded_file.read()
-            dict_parsed = xmltodict.parse(content)
-            formulario_dict = {}
-            if "gxsi:formulario" in dict_parsed:
-                form_data = dict_parsed["gxsi:formulario"]
-                formulario_dict["nome"] = form_data.get("@nome", "")
-                formulario_dict["versao"] = form_data.get("@versao", "1.0")
-                formulario_dict["secoes"] = []
+            doc = xmltodict.parse(content)
 
-                elementos = (form_data.get("elementos") or {}).get("elemento", [])
-                if not isinstance(elementos, list):
-                    elementos = [elementos] if elementos else []
+            # Função auxiliar para normalizar para lista
+            def as_list(x):
+                if x is None:
+                    return []
+                return x if isinstance(x, list) else [x]
 
-                for elem in elementos:
+            form_data = doc.get("gxsi:formulario") or doc.get("formulario")
+            if form_data is None:
+                st.error("Arquivo não contém estrutura válida de formulário.")
+            else:
+                formulario_dict = {
+                    "nome": form_data.get("@nome", ""),
+                    "versao": form_data.get("@versao", "1.0"),
+                    "secoes": [],
+                    "dominios": []
+                }
+
+                # Mapa de domínios: chave -> lista de itens {descricao, valor}
+                dominios_map = {}
+                dom_root = form_data.get("dominios") or {}
+                for dom in as_list(dom_root.get("dominio")):
+                    chave = dom.get("@chave") or ""
+                    itens = []
+                    for it in as_list((dom.get("itens") or {}).get("item")):
+                        itens.append({
+                            "descricao": it.get("@descricao", ""),
+                            "valor": it.get("@valor", "")
+                        })
+                    if chave:
+                        dominios_map[chave] = itens
+                        formulario_dict["dominios"].append({"chave": chave, "itens": itens})
+
+                # Seções e elementos
+                for elem in as_list((form_data.get("elementos") or {}).get("elemento")):
                     if elem.get("@gxsi:type") == "seccao":
                         sec = {
                             "titulo": elem.get("@titulo", ""),
                             "largura": int(elem.get("@largura", "500")),
                             "elementos": []
                         }
-                        sec_elementos = (elem.get("elementos") or {}).get("elemento", [])
-                        if not isinstance(sec_elementos, list):
-                            sec_elementos = [sec_elementos] if sec_elementos else []
-                        for se in sec_elementos:
+                        for se in as_list((elem.get("elementos") or {}).get("elemento")):
                             tipo = se.get("@gxsi:type")
                             if tipo == "tabela":
-                                linhas = (se.get("linhas") or {}).get("linha", [])
-                                if not isinstance(linhas, list):
-                                    linhas = [linhas] if linhas else []
                                 tabela = []
-                                for linha in linhas:
-                                    celulas = (linha.get("celulas") or {}).get("celula", [])
-                                    if not isinstance(celulas, list):
-                                        celulas = [celulas] if celulas else []
+                                for linha in as_list((se.get("linhas") or {}).get("linha")):
                                     linha_lista = []
-                                    for cel in celulas:
-                                        elementos_cel = (cel.get("elementos") or {}).get("elemento", [])
-                                        if not isinstance(elementos_cel, list):
-                                            elementos_cel = [elementos_cel] if elementos_cel else []
+                                    for cel in as_list((linha.get("celulas") or {}).get("celula")):
                                         campos = []
-                                        for c in elementos_cel:
+                                        for c in as_list((cel.get("elementos") or {}).get("elemento")):
+                                            ctipo = c.get("@gxsi:type", "texto")
+                                            dom_key = c.get("@dominio")
+                                            colunas = int(c.get("@colunas", "1"))
                                             c_info = {
-                                                "tipo": c.get("@gxsi:type", "texto"),
+                                                "tipo": ctipo,
                                                 "titulo": c.get("@titulo", ""),
                                                 "descricao": c.get("@descricao", ""),
                                                 "obrigatorio": c.get("@obrigatorio", "false") == "true",
                                                 "largura": int(c.get("@largura", "450")),
                                                 "altura": int(c.get("@altura", "0")) if c.get("@altura") else None,
-                                                "colunas": int(c.get("@colunas", "1")),
-                                                "dominios": []  # mapeamento de dominios pode ser adicionado depois
+                                                "colunas": colunas,
                                             }
+                                            if ctipo in LIST_TYPES and dom_key:
+                                                c_info["dominio_chave"] = dom_key
+                                                c_info["dominios"] = list(dominios_map.get(dom_key, []))
                                             campos.append(c_info)
                                         linha_lista.append(campos)
                                     tabela.append(linha_lista)
                                 sec["elementos"].append({"tipo_elemento": "tabela", "tabela": tabela})
                             else:
+                                dom_key = se.get("@dominio")
+                                colunas = int(se.get("@colunas", "1"))
                                 c_info = {
                                     "tipo": tipo,
                                     "titulo": se.get("@titulo", ""),
@@ -517,10 +528,14 @@ with aba[1]:
                                     "obrigatorio": se.get("@obrigatorio", "false") == "true",
                                     "largura": int(se.get("@largura", "450")),
                                     "altura": int(se.get("@altura", "0")) if se.get("@altura") else None,
-                                    "colunas": int(se.get("@colunas", "1")),
-                                    "in_tabela": False,
-                                    "dominios": []  # mapeamento de dominios pode ser adicionado depois
+                                    "colunas": colunas,
+                                    "in_tabela": False
                                 }
+                                if tipo in LIST_TYPES and dom_key:
+                                    c_info["dominio_chave"] = dom_key
+                                    c_info["dominios"] = list(dominios_map.get(dom_key, []))
+                                else:
+                                    c_info["dominios"] = []
                                 sec["elementos"].append({"tipo_elemento": "campo", "campo": c_info})
                         formulario_dict["secoes"].append(sec)
 
@@ -529,12 +544,10 @@ with aba[1]:
 
                 # Pré-visualização do formulário (apenas na aba Importar)
                 preview_formulario(st.session_state.formulario, context_key="import")
-            else:
-                st.error("Arquivo não contém estrutura válida de formulário.")
         except Exception as e:
             st.error(f"Erro ao importar arquivo: {str(e)}")
 
-# utilidade extra (evitar duplicidade)
+# Evitar shadowing e duplicidade
 def reorder_elementos(elementos, idx, direcao):
     novo_idx = idx + direcao
     if novo_idx < 0 or novo_idx >= len(elementos):
