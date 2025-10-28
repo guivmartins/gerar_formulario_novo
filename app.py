@@ -417,9 +417,8 @@ if st.session_state.formulario.get("secoes"):
             adicionar_campo_secao(secao_atual, campo, linha_tabela)
             st.rerun()
 
-# Coluna lateral: prévia e XML
+# Pré-visualização e XML (sem o subheader removido)
 st.markdown("---")
-st.subheader("📋 Pré-visualização (builder)")
 preview_formulario(st.session_state.formulario, context_key="builder")
 
 st.markdown("---")
