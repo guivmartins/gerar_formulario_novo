@@ -609,8 +609,8 @@ with col_esq:
                 st.rerun()
 
     # XML PREVIEW abaixo do construtor (coluna esquerda)
-    st.markdown("---")
-    st.subheader("📑 Pré-visualização XML")
+st.markdown("---")
+with st.expander("📑 Pré-visualização XML", expanded=False):
     st.code(gerar_xml(st.session_state.formulario), language="xml")
 
 with col_dir:
