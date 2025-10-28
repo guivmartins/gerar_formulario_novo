@@ -454,16 +454,19 @@ col_esq, col_dir = st.columns([3, 2], gap="medium")
 
 with col_esq:
     st.title("Construtor de Formulários Completo 8.0")
-    st.session_state.formulario["nome"] = st.text_input("Nome do Formulário", st.session_state.formulario.get("nome",""))
-    st.markdown("---")
 
-    # --- NOVO: Importar XML/.GFE para edição ---
+    # --- Importar XML/.GFE para edição (AGORA LOGO ABAIXO DO TÍTULO) ---
     with st.expander("📥 Importar XML/.GFE", expanded=False):
-        up = st.file_uploader("Selecione o arquivo", type=["xml", "gfe"], accept_multiple_files=False, key="upload_xml")
+        up = st.file_uploader(
+            "Selecione o arquivo",
+            type=["xml", "gfe"],
+            accept_multiple_files=False,
+            key="upload_xml"
+        )
         if up is not None:
             if st.button("Carregar", key="btn_import_xml"):
                 try:
-                    form = parse_formulario_from_xml(up)
+                    form = parse_formulario_from_xml(up)  # lê UploadedFile (file-like) diretamente
                     st.session_state.formulario = form
                     st.session_state.nova_secao = {"titulo": "", "largura": 500, "elementos": []}
                     st.session_state.editing = None
@@ -474,6 +477,11 @@ with col_esq:
                 except Exception as e:
                     st.error(f"Falha ao importar: {e}")
 
+    # Campo de nome do formulário permanece abaixo do import
+    st.session_state.formulario["nome"] = st.text_input(
+        "Nome do Formulário",
+        st.session_state.formulario.get("nome","")
+    )
     st.markdown("---")
 
     with st.expander("➕ Adicionar Seção", expanded=True):
