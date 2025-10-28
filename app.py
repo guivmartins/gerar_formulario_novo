@@ -2,7 +2,7 @@ import streamlit as st
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
-st.set_page_config(page_title="Construtor de Formulários Completo 8.0", layout="wide")
+st.set_page_config(page_title="Construtor de Formulários", layout="wide")
 
 # Estado inicial
 if "formulario" not in st.session_state:
@@ -453,7 +453,7 @@ def edit_campo_ui(campo: dict, key_prefix: str):
 col_esq, col_dir = st.columns([3, 2], gap="medium")
 
 with col_esq:
-    st.title("Construtor de Formulários Completo 8.0")
+    st.title("Construtor de Formulários")
 
     # --- Importar XML/.GFE para edição (AGORA LOGO ABAIXO DO TÍTULO) ---
     with st.expander("📥 Importar XML/.GFE", expanded=False):
