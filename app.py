@@ -1,3 +1,9 @@
+##app.py do Gerador de Formulários versão 9.0
+##requirements.txt
+##xmltodict
+##streamlit>=1.50.0
+##streamlit-sortables>=0.3.0
+
 import streamlit as st
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
